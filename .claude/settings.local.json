@@ -15,7 +15,12 @@
       "Bash(node -e \"const {execSync}=require\\('child_process'\\);const r=execSync\\('npm audit --json',{encoding:'utf8',stdio:['pipe','pipe','pipe']}\\);const d=JSON.parse\\(r\\);const m=d.metadata?.vulnerabilities||{};console.log\\('SUMMARY:',JSON.stringify\\(m\\)\\);Object.entries\\(d.vulnerabilities||{}\\).forEach\\(\\([k,v]\\)=>{\\(v.via||[]\\).filter\\(x=>typeof x==='object'\\).forEach\\(a=>{console.log\\(k+'|'+v.severity+'|'+\\(a.title||'?'\\)+'|'+\\(a.url||'?'\\)+'|'+\\(a.cvss?.score||'?'\\)\\)}\\)}\\);\")",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); vulns=d.get\\('vulnerabilities',{}\\); [print\\(k, v.get\\('severity'\\), v.get\\('fixAvailable'\\)\\) for k,v in vulns.items\\(\\) if v.get\\('severity'\\) in \\('critical','high','moderate'\\)]\")",
       "Bash(python3 *)",
-      "Bash(node -e \"const d=require\\('./audit_raw.json'\\);const v=d.metadata?.vulnerabilities||{};console.log\\(JSON.stringify\\(v\\)\\)\")"
+      "Bash(node -e \"const d=require\\('./audit_raw.json'\\);const v=d.metadata?.vulnerabilities||{};console.log\\(JSON.stringify\\(v\\)\\)\")",
+      "Bash(taskkill /PID 22752 /F)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
