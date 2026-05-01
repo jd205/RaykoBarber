@@ -42,3 +42,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database migrations & schema — keep local only
+*.sql
+audit_raw.json
