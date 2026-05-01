@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reporte de Seguridad — Reyko Nakao SaaS Barbershop</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #e5e7eb;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
+      border-bottom: 1px solid #222;
+      padding: 40px 48px;
+    }
+    .header-top { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .logo {
+      width: 48px; height: 48px;
+      background: #fbbf24; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 900; color: #000; flex-shrink: 0;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; color: #fff; }
+    header p.subtitle { color: #9ca3af; font-size: 0.9rem; margin-top: 2px; }
+
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .meta-item { background: #111; border: 1px solid #222; border-radius: 8px; padding: 12px 16px; }
+    .meta-item .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; }
+    .meta-item .value { font-size: 0.9rem; color: #e5e7eb; font-weight: 500; margin-top: 2px; }
+
+    /* ── Score ── */
+    .score-section { padding: 40px 48px; display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; }
+    .score-card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 28px 32px; flex: 1; min-width: 150px; text-align: center; }
+    .score-card.main { flex: 0 0 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-color: #fbbf24; }
+    .big-score { font-size: 4rem; font-weight: 900; line-height: 1; color: #fbbf24; }
+    .score-label { font-size: 0.8rem; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
+    .stat-num { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .stat-num.critical { color: #ef4444; }
+    .stat-num.high     { color: #f97316; }
+    .stat-num.medium   { color: #eab308; }
+    .stat-num.low      { color: #22d3ee; }
+    .stat-num.pass     { color: #22c55e; }
+
+    /* ── Layout ── */
+    .container { padding: 0 48px 60px; }
+
+    h2 {
+      font-size: 1.25rem; font-weight: 700; color: #fff;
+      margin: 40px 0 16px; padding-bottom: 10px;
+      border-bottom: 1px solid #1f1f1f;
+      display: flex; align-items: center; gap: 10px;
+    }
+    h2 .badge {
+      font-size: 0.7rem; font-weight: 600;
+      padding: 2px 8px; border-radius: 99px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge-high   { background: #7c2d12; color: #fdba74; }
+    .badge-medium { background: #713f12; color: #fde047; }
+    .badge-low    { background: #164e63; color: #67e8f9; }
+    .badge-pass   { background: #14532d; color: #86efac; }
+
+    /* ── Issue cards ── */
+    .issue {
+      background: #111; border: 1px solid #1f2937;
+      border-left: 4px solid; border-radius: 10px;
+      margin-bottom: 16px; overflow: hidden;
+    }
+    .issue.high   { border-left-color: #f97316; }
+    .issue.medium { border-left-color: #eab308; }
+    .issue.low    { border-left-color: #22d3ee; }
+    .issue.pass   { border-left-color: #22c55e; }
+
+    .issue-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; }
+    .issue-header:hover { background: rgba(255,255,255,0.03); }
+
+    .sev-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .issue.high   .sev-dot { background: #f97316; box-shadow: 0 0 6px #f97316; }
+    .issue.medium .sev-dot { background: #eab308; box-shadow: 0 0 6px #eab308; }
+    .issue.low    .sev-dot { background: #22d3ee; box-shadow: 0 0 6px #22d3ee; }
+    .issue.pass   .sev-dot { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+
+    .issue-title { font-weight: 600; color: #f3f4f6; flex: 1; font-size: 0.95rem; }
+    .issue-id    { font-size: 0.75rem; color: #4b5563; font-family: monospace; }
+    .chevron     { color: #4b5563; transition: transform 0.2s; font-size: 0.75rem; }
+    .issue.open .chevron { transform: rotate(90deg); }
+
+    .issue-body { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.35s ease, padding 0.35s; }
+    .issue.open .issue-body { max-height: 2000px; padding: 0 20px 20px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .info-block { background: #0d0d0d; border: 1px solid #1f2937; border-radius: 8px; padding: 14px 16px; }
+    .info-block .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin-bottom: 6px; }
+    .info-block p  { font-size: 0.88rem; color: #d1d5db; }
+    .info-block ul { padding-left: 16px; }
+    .info-block li { font-size: 0.88rem; color: #d1d5db; margin-bottom: 4px; }
+
+    code {
+      background: #1f2937; color: #67e8f9;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.82rem; padding: 1px 6px; border-radius: 4px;
+    }
+    pre {
+      background: #0d1117; border: 1px solid #1f2937; border-radius: 8px;
+      padding: 14px 16px; margin: 8px 0; overflow-x: auto;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.82rem; color: #a5f3fc; line-height: 1.5;
+    }
+    .location-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #1f2937; color: #93c5fd;
+      font-family: monospace; font-size: 0.8rem;
+      padding: 3px 10px; border-radius: 6px; margin: 4px 4px 4px 0;
+    }
+
+    /* Pass grid */
+    .pass-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+    .pass-item {
+      background: #0d130e; border: 1px solid #14532d; border-radius: 8px;
+      padding: 12px 16px; display: flex; align-items: flex-start;
+      gap: 10px; font-size: 0.88rem; color: #bbf7d0;
+    }
+    .pass-item .check { color: #22c55e; font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .pass-item strong { color: #86efac; }
+
+    /* Checklist */
+    .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1a1a1a; }
+    .checklist-item:last-child { border-bottom: none; }
+    .checklist-item input[type=checkbox] { margin-top: 3px; accent-color: #fbbf24; width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+    .checklist-item label { font-size: 0.9rem; color: #d1d5db; cursor: pointer; }
+    .checklist-item label strong { color: #f97316; }
+    .checklist-item label .ref { color: #4b5563; font-size: 0.8rem; margin-right: 6px; font-family: monospace; }
+
+    /* Deps table */
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; padding: 10px 12px; border-bottom: 1px solid #1f2937; }
+    td { padding: 10px 12px; border-bottom: 1px solid #111; font-size: 0.88rem; color: #d1d5db; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    footer { text-align: center; padding: 32px 48px; color: #374151; font-size: 0.8rem; border-top: 1px solid #111; }
+    footer span { color: #4b5563; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-top">
+    <div class="logo">&#9988;</div>
+    <div>
+      <h1>Reporte de Seguridad</h1>
+      <p class="subtitle">Reyko Nakao SaaS Barbershop &mdash; Auditoria Pre-Produccion</p>
+    </div>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-item"><div class="label">Fecha</div><div class="value">30 Abril 2026</div></div>
+    <div class="meta-item"><div class="label">Stack</div><div class="value">Next.js 16 &middot; Supabase &middot; TypeScript</div></div>
+    <div class="meta-item"><div class="label">Alcance</div><div class="value">Full-stack (server actions + DB + middleware)</div></div>
+    <div class="meta-item"><div class="label">Archivos revisados</div><div class="value">23 archivos fuente</div></div>
+    <div class="meta-item"><div class="label">Estado</div><div class="value" style="color:#eab308">&#9888; Requiere correcciones</div></div>
+  </div>
+</header>
+
+<!-- SCORE -->
+<div class="score-section">
+  <div class="score-card main">
+    <div class="big-score">B+</div>
+    <div class="score-label">Puntuacion global</div>
+  </div>
+  <div class="score-card"><div class="stat-num critical">0</div><div class="score-label">Criticos</div></div>
+  <div class="score-card"><div class="stat-num high">3</div><div class="score-label">Altos</div></div>
+  <div class="score-card"><div class="stat-num medium">8</div><div class="score-label">Medios</div></div>
+  <div class="score-card"><div class="stat-num low">4</div><div class="score-label">Bajos / Info</div></div>
+  <div class="score-card"><div class="stat-num pass">15</div><div class="score-label">Controles OK</div></div>
+</div>
+
+<div class="container">
+
+  <!-- ═══ HIGH ═══ -->
+  <h2>&#128308; Alta Severidad <span class="badge badge-high">HIGH</span></h2>
+
+  <!-- H-01 -->
+  <div class="issue high" id="h01">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">H-01 &middot; CSP permite <code>unsafe-inline</code> en script-src &mdash; XSS sin proteccion real</span>
+      <span class="issue-id">OWASP A05</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; next.config.ts:32&ndash;34</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Impacto</div>
+          <p>Cualquier XSS en la app permite ejecucion arbitraria de JavaScript. La CSP queda inutilizada como defensa secundaria.</p>
+        </div>
+      </div>
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Codigo actual (problematico)</div>
+        <pre>// next.config.ts lineas 32-34
+process.env.NODE_ENV === 'development'
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'"  // unsafe-inline en PRODUCCION</pre>
+      </div>
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Correccion recomendada &mdash; nonce-based CSP</div>
+        <pre>// 1. En el middleware (proxy.ts) generar nonce por request:
+import crypto from 'crypto'
+const nonce = crypto.randomBytes(16).toString('base64')
+response.headers.set('x-nonce', nonce)
+
+// 2. En next.config.ts usar nonce dinamico:
+"script-src 'self' 'nonce-{NONCE}'"
+
+// Next.js 13+ inyecta el nonce automaticamente en Scripts internos
+// si se configura correctamente en el middleware.</pre>
+      </div>
+      <div class="info-block">
+        <div class="label">Alternativa practica a corto plazo</div>
+        <p>Si implementar nonces es complejo para el sprint actual, documentar explicitamente el riesgo aceptado y priorizar para el siguiente release. El riesgo es bajo si no hay inputs que rendericen HTML crudo.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- H-02 -->
+  <div class="issue high" id="h02">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">H-02 &middot; Sin rate limiting en login/signup &mdash; fuerza bruta posible</span>
+      <span class="issue-id">OWASP A07</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; app/actions/auth.ts:18 login()</span>
+          <span class="location-tag">&#128196; app/actions/auth.ts:36 signup()</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Escenario de ataque</div>
+          <p>Un atacante puede enviar miles de POSTs al server action de login para adivinar contrasenas. Supabase tiene proteccion basica pero configurable. Sin limite en la capa de aplicacion.</p>
+        </div>
+      </div>
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Correccion rapida (Supabase nativo)</div>
+        <ul>
+          <li>Supabase Dashboard &rarr; <strong>Auth &rarr; Settings &rarr; Rate Limits</strong></li>
+          <li>Activar limite de intentos de sign-in y habilitar <strong>CAPTCHA</strong> (integra hCaptcha nativamente)</li>
+        </ul>
+      </div>
+      <div class="info-block">
+        <div class="label">Correccion en codigo (Upstash Redis)</div>
+        <pre>import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '1 m'),
+})
+
+export async function login(formData: FormData) {
+  const ip = headers().get('x-forwarded-for') ?? 'anon'
+  const { success } = await ratelimit.limit(ip)
+  if (!success) return { error: 'Demasiados intentos. Espera 1 minuto.' }
+  // ... resto del login
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- H-03 -->
+  <div class="issue high open" id="h03">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">H-03 &middot; NEXT_PUBLIC_SITE_URL tiene espacio inicial &mdash; OAuth redirige a localhost en produccion</span>
+      <span class="issue-id">CWE-547</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; .env.local:5</span>
+          <span class="location-tag">&#128196; app/auth/callback/route.ts:4</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Impacto</div>
+          <p>Tras login con magic link o OAuth, el usuario es redirigido a <code>http://localhost:3000/dashboard</code> en lugar del dominio real. La autenticacion queda rota en produccion.</p>
+        </div>
+      </div>
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Evidencia</div>
+        <pre># .env.local linea 5 (nótese el espacio antes del nombre)
+ NEXT_PUBLIC_SITE_URL=http://localhost:3000
+^-- espacio aqui hace que Node.js lea la clave como " NEXT_PUBLIC_SITE_URL"
+
+# app/auth/callback/route.ts:4
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+# -> process.env.NEXT_PUBLIC_SITE_URL === undefined
+# -> SITE_URL siempre = 'http://localhost:3000' en cualquier entorno</pre>
+      </div>
+      <div class="info-block">
+        <div class="label">Correccion &mdash; dos pasos</div>
+        <pre># 1. En .env.local: quitar el espacio inicial
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# 2. En el servidor de produccion (Vercel / Railway / etc.):
+NEXT_PUBLIC_SITE_URL=https://reykobarbershop.com</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MEDIUM ═══ -->
+  <h2>&#128993; Severidad Media <span class="badge badge-medium">MEDIUM</span></h2>
+
+  <!-- M-01 -->
+  <div class="issue medium" id="m01">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-01 &middot; heroImageUrl acepta cualquier string en updateBarbershopSettings &mdash; validacion inconsistente</span>
+      <span class="issue-id">CWE-20</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; app/actions/settings.ts:73</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Comparacion</div>
+          <p><code>updateBarbershopSettings</code> usa <code>z.string().max(500).optional()</code> para heroImageUrl.<br>
+          <code>updateHeroImageUrl</code> usa <code>z.string().url().max(500)</code>. Inconsistente.</p>
+        </div>
+      </div>
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Codigo problematico</div>
+        <pre>// settings.ts:73 - no valida que sea URL
+heroImageUrl: z.string().max(500).optional().or(z.literal(''))</pre>
+      </div>
+      <div class="info-block">
+        <div class="label">Correccion (1 linea)</div>
+        <pre>heroImageUrl: z.string().url().max(500).optional().or(z.literal(''))</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- M-02 -->
+  <div class="issue medium" id="m02">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-02 &middot; getBarberBookedSlots no verifica autenticacion antes de llamar el RPC</span>
+      <span class="issue-id">CWE-284</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; app/actions/appointments.ts:138&ndash;150</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Contexto</div>
+          <p>Esta funcion es usada por el calendario de reservas publico. La disponibilidad de franjas es intencionalmente publica. RLS deberia proteger datos sensibles dentro del RPC.</p>
+        </div>
+      </div>
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Riesgo concreto</div>
+        <p>Si el RPC <code>get_barber_booked_slots</code> devuelve IDs de usuarios o informacion identificable ademas de booleanos de ocupacion, cualquier visitante podria extraer datos de clientes. Verificar en Supabase que el RPC solo retorna timestamps sin datos personales.</p>
+      </div>
+      <div class="info-block">
+        <div class="label">Accion requerida</div>
+        <pre>-- Verificar en Supabase SQL Editor:
+-- El RPC solo debe retornar timestamps de slots ocupados, sin user_id ni otros datos.
+-- Ejemplo de implementacion segura:
+CREATE OR REPLACE FUNCTION get_barber_booked_slots(p_barber_id uuid, p_slots timestamptz[])
+RETURNS timestamptz[] AS $$
+  SELECT ARRAY(
+    SELECT appointment_date FROM appointments
+    WHERE barber_id = p_barber_id
+      AND appointment_date = ANY(p_slots)
+      AND status NOT IN ('cancelled')
+  );
+$$ LANGUAGE sql SECURITY DEFINER;</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- M-03 -->
+  <div class="issue medium" id="m03">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-03 &middot; Sin proteccion de rutas admin a nivel de middleware &mdash; defense-in-depth ausente</span>
+      <span class="issue-id">CWE-284</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; proxy.ts:8&ndash;23</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Estado actual</div>
+          <p>Middleware verifica autenticacion para <code>/dashboard</code>. La separacion admin/cliente ocurre en el componente (<code>role === 'admin'</code>) y en cada server action (<code>requireAdmin()</code>). Correcto hoy; fragil si se agregan nuevas rutas sin el guard.</p>
+        </div>
+      </div>
+      <div class="info-block">
+        <div class="label">Recomendacion (defensa en profundidad)</div>
+        <pre>// proxy.ts - si se crean segmentos de ruta exclusivos para admin:
+// /dashboard/admin/* - agregar verificacion de role en middleware
+// Esto previene que un error humano al escribir una nueva server action
+// deje expuesta una funcionalidad admin sin el requireAdmin() guard.</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- M-04 -->
+  <div class="issue medium" id="m04">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-04 &middot; audit_raw.json en raiz del proyecto &mdash; expone mapa de vulnerabilidades</span>
+      <span class="issue-id">CWE-200</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Descripcion</div>
+        <p>El archivo <code>audit_raw.json</code> contiene el output de <code>npm audit</code> con detalles de vulnerabilidades, versiones exactas de dependencias y rutas de dependencias internas. Si es accesible en el servidor, expone el mapa de ataque de la aplicacion.</p>
+      </div>
+      <div class="info-block">
+        <div class="label">Correccion</div>
+        <ul>
+          <li>Eliminar <code>audit_raw.json</code> del directorio antes del deploy</li>
+          <li>Agregar al <code>.gitignore</code>: <code>audit_raw.json</code></li>
+          <li>El directorio <code>scripts/</code> tampoco debe desplegarse (Next.js no lo incluye en el bundle, pero si en el ZIP/repo del servidor)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- M-05 -->
+  <div class="issue medium" id="m05">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-05 &middot; allowedDevOrigins con IP interna hardcodeada en next.config.ts</span>
+      <span class="issue-id">CWE-16</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; next.config.ts:55</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Codigo</div>
+          <pre>allowedDevOrigins: ['10.0.0.188'],</pre>
+        </div>
+      </div>
+      <div class="info-block">
+        <div class="label">Correccion</div>
+        <p>Esta opcion solo aplica en modo <code>development</code>. Condicionar para no exponer IPs internas en el repo:</p>
+        <pre>// next.config.ts
+...(process.env.NODE_ENV === 'development'
+  ? { allowedDevOrigins: ['10.0.0.188'] }
+  : {}
+)</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- M-06 -->
+  <div class="issue medium" id="m06">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-06 &middot; Politica de contrasenas debil &mdash; minimo 8 caracteres sin complejidad</span>
+      <span class="issue-id">OWASP A07</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="grid-2">
+        <div class="info-block">
+          <div class="label">Ubicacion</div>
+          <span class="location-tag">&#128196; app/actions/auth.ts:14</span>
+        </div>
+        <div class="info-block">
+          <div class="label">Codigo actual</div>
+          <pre>password: z.string().min(8, 'Password must be at least 8 characters')</pre>
+        </div>
+      </div>
+      <div class="info-block">
+        <div class="label">Correcciones complementarias</div>
+        <ul>
+          <li>Supabase Dashboard &rarr; Auth &rarr; Settings &rarr; <strong>Password Strength</strong>: activar requisitos de complejidad nativos</li>
+          <li>Optionalmente en el schema Zod agregar regex de complejidad</li>
+        </ul>
+        <pre>// Opcion en Zod (complementa la validacion de Supabase):
+password: z.string().min(8).regex(/[A-Z]/, 'Necesita una mayuscula').regex(/[0-9]/, 'Necesita un numero')</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- M-07 -->
+  <div class="issue medium" id="m07">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-07 &middot; Sin politica RLS DELETE en tabla notifications &mdash; datos sin poder limpiar</span>
+      <span class="issue-id">CWE-400</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Descripcion</div>
+        <p>La tabla <code>notifications</code> tiene politicas SELECT, INSERT y UPDATE pero no DELETE. Los administradores no pueden eliminar notificaciones via el cliente anon. Con el tiempo se acumularán miles de registros afectando el rendimiento.</p>
+      </div>
+      <div class="info-block">
+        <div class="label">Correccion &mdash; ejecutar en Supabase SQL Editor</div>
+        <pre>CREATE POLICY "notif_delete" ON public.notifications FOR DELETE TO authenticated
+  USING (public.is_admin());</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- M-08 -->
+  <div class="issue medium" id="m08">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">M-08 &middot; 5 vulnerabilidades moderadas en dependencias (npm audit)</span>
+      <span class="issue-id">OWASP A06</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <table>
+        <thead>
+          <tr><th>Paquete</th><th>Severidad</th><th>Descripcion</th><th>Correccion</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>postcss</code></td>
+            <td><span style="color:#eab308">MODERATE</span></td>
+            <td>XSS via &lt;/style&gt; no escapado en CSS Stringify (indirecto, server-side)</td>
+            <td>Indirecto via <code>next</code></td>
+          </tr>
+          <tr>
+            <td><code>uuid</code></td>
+            <td><span style="color:#eab308">MODERATE</span></td>
+            <td>Buffer bounds check faltante en v3/v5/v6 cuando se provee buf</td>
+            <td><code>npm update resend</code></td>
+          </tr>
+          <tr>
+            <td><code>svix</code></td>
+            <td><span style="color:#eab308">MODERATE</span></td>
+            <td>Dependencia transitiva de resend con uuid vulnerable</td>
+            <td><code>npm update resend</code></td>
+          </tr>
+          <tr>
+            <td><code>resend</code></td>
+            <td><span style="color:#eab308">MODERATE</span></td>
+            <td>Transitivo (uuid/svix). Fix disponible en resend v6.1.3+</td>
+            <td><code>npm update resend</code></td>
+          </tr>
+          <tr>
+            <td><code>next</code></td>
+            <td><span style="color:#eab308">MODERATE</span></td>
+            <td>Transitivo via postcss. Actualmente en v16.2.4 (reciente)</td>
+            <td>Monitorear releases</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="info-block" style="margin-top:12px">
+        <div class="label">Comandos de correccion</div>
+        <pre>npm update resend   # resuelve uuid + svix
+npm audit           # verificar 0 vulnerabilities post-update</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ LOW ═══ -->
+  <h2>&#128309; Baja Severidad / Informativo <span class="badge badge-low">LOW</span></h2>
+
+  <div class="issue low" id="l01">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">L-01 &middot; HSTS sin directiva preload</span>
+      <span class="issue-id">INFO</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Actual (next.config.ts:17)</div>
+        <pre>'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'</pre>
+      </div>
+      <div class="info-block">
+        <div class="label">Mejora</div>
+        <pre>'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload'
+// Luego registrar en https://hstspreload.org para proteccion desde la primera visita</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="issue low" id="l02">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">L-02 &middot; goo.gl/maps (URL shortener) permitido en validacion de Google Maps</span>
+      <span class="issue-id">INFO</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="info-block">
+        <div class="label">Ubicacion &amp; Descripcion</div>
+        <span class="location-tag">&#128196; app/actions/settings.ts:42&ndash;44</span>
+        <p style="margin-top:8px">Solo admins pueden modificarlo y el dominio es de Google. Riesgo minimo. Si <code>goo.gl/maps</code> no se usa activamente, considerar eliminarlo del whitelist para reducir la superficie.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="issue low" id="l03">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">L-03 &middot; Email from: usa onboarding@resend.dev &mdash; dominio sandbox de Resend</span>
+      <span class="issue-id">CONFIG</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="info-block" style="margin-bottom:12px">
+        <div class="label">Ubicacion</div>
+        <span class="location-tag">&#128196; app/actions/email.ts:58</span>
+      </div>
+      <div class="info-block">
+        <div class="label">Impacto</div>
+        <p>Resend solo entrega emails de <code>onboarding@resend.dev</code> al dueno de la cuenta. Para enviar a clientes reales hay que verificar un dominio propio.</p>
+        <pre>// Despues de verificar dominio en resend.com:
+from: 'Reyko Nakao Barbershop &lt;noreply@tudominio.com&gt;'</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="issue low" id="l04">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot"></div>
+      <span class="issue-title">L-04 &middot; Sin politica RLS DELETE en tabla appointments</span>
+      <span class="issue-id">INFO</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="info-block">
+        <div class="label">Descripcion</div>
+        <p>Por diseno las citas se cancelan (cambio de status), no se eliminan &mdash; esto es correcto para mantener historial. Sin embargo, para operaciones de mantenimiento admin (limpiar datos de prueba) no hay politica DELETE. Opcional segun necesidad:</p>
+        <pre>CREATE POLICY "appts_delete" ON public.appointments FOR DELETE TO authenticated
+  USING (public.is_admin());</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CONTROLES OK ═══ -->
+  <h2>&#10003; Controles de Seguridad Verificados <span class="badge badge-pass">PASS</span></h2>
+  <div class="pass-grid">
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Zod en todos los server actions</strong> &mdash; login, signup, booking, admin, settings, gallery, social-links.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>requireAdmin() en todas las acciones admin</strong> &mdash; admin.ts, settings.ts, services.ts, gallery.ts, social-links.ts, email.ts.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>RLS habilitado en las 10 tablas</strong> &mdash; profiles, appointments, audit_logs, notifications, services, barbers, reviews, gallery, barbershop_settings, social_links.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>getUser() en lugar de getSession()</strong> &mdash; Todas las verificaciones de auth validan contra el servidor Supabase, no solo la cookie local.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Logout CSRF-safe</strong> &mdash; /logout solo acepta POST; GET redirige sin cerrar sesion, previniendo logout via img tags o link prefetch.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Avatar storage con ownership</strong> &mdash; Upload restringido al folder del propio userId: <code>(storage.foldername(name))[1] = auth.uid()::text</code></div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Sin service role key en cliente</strong> &mdash; Solo anon key en el browser. El service role key no aparece en ningún archivo de codigo.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>UUID validation en todos los IDs</strong> &mdash; <code>z.string().uuid()</code> en todos los parametros de ID antes de queries a DB, previniendo injection.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Appointment ownership doble filtro</strong> &mdash; reschedule/cancel filtran por <code>.eq('user_id', user.id)</code> ademas del ID, previniendo IDOR.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Cabeceras HTTP de seguridad</strong> &mdash; X-Content-Type-Options, X-Frame-Options, Referrer-Policy, HSTS, Permissions-Policy, CSP en next.config.ts.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>HTML escaping en emails</strong> &mdash; escapeHtml() en email.ts escapa &amp; &lt; &gt; " ' antes de insertar datos de usuario en HTML del email.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Token refresh en middleware</strong> &mdash; getClaims() en cada request via proxy.ts actualiza el token y previene sesiones expiradas silenciosas.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Google Maps URL whitelist</strong> &mdash; isValidGoogleMapsEmbed e isValidGoogleMapsUrl restringen a dominios conocidos, previniendo iframe injection.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>Audit log de acciones admin</strong> &mdash; toggleUserRole registra executor, accion y target con timestamp en audit_logs.</div></div>
+    <div class="pass-item"><span class="check">&#10003;</span><div><strong>.gitignore protege .env files</strong> &mdash; Patron <code>.env*</code> previene commit accidental de credenciales y API keys.</div></div>
+  </div>
+
+  <!-- ═══ CHECKLIST DEPLOY ═══ -->
+  <h2>&#128640; Checklist Pre-Produccion</h2>
+
+  <div class="issue high" style="border-left-color:#f97316">
+    <div class="issue-header" onclick="toggle(this)">
+      <div class="sev-dot" style="background:#f97316; box-shadow: 0 0 6px #f97316"></div>
+      <span class="issue-title">Pasos obligatorios antes del deploy &mdash; marcar cada item completado</span>
+      <span class="chevron">&#9654;</span>
+    </div>
+    <div class="issue-body">
+      <div class="info-block">
+        <div class="label">Items criticos y altos (bloquean produccion)</div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c1"><label for="c1"><span class="ref">[H-03]</span> Quitar espacio inicial de <code>NEXT_PUBLIC_SITE_URL</code> en .env.local</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c2"><label for="c2"><span class="ref">[H-03]</span> Configurar <code>NEXT_PUBLIC_SITE_URL=https://tudominio.com</code> en variables de entorno del servidor de produccion</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c3"><label for="c3"><span class="ref">[H-02]</span> Activar Rate Limiting en Supabase Dashboard &rarr; Auth &rarr; Settings &rarr; Rate Limits</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c4"><label for="c4"><span class="ref">[H-01]</span> Implementar nonce-based CSP o documentar el riesgo de unsafe-inline como aceptado</label>
+        </div>
+      </div>
+      <div class="info-block" style="margin-top:12px">
+        <div class="label">Items medios (deben corregirse antes del launch o en primer hotfix)</div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c5"><label for="c5"><span class="ref">[M-08]</span> Ejecutar <code>npm update resend</code> y verificar <code>npm audit</code> con 0 vulnerabilities</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c6"><label for="c6"><span class="ref">[M-07]</span> Ejecutar SQL de politica DELETE en notifications en Supabase SQL Editor</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c7"><label for="c7"><span class="ref">[M-04]</span> Eliminar <code>audit_raw.json</code> y agregarlo al .gitignore</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c8"><label for="c8"><span class="ref">[M-01]</span> Corregir validacion de heroImageUrl: agregar <code>.url()</code> en updateBarbershopSettings</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c9"><label for="c9"><span class="ref">[M-05]</span> Condicionar <code>allowedDevOrigins</code> solo a NODE_ENV=development en next.config.ts</label>
+        </div>
+      </div>
+      <div class="info-block" style="margin-top:12px">
+        <div class="label">Items de configuracion de produccion</div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c10"><label for="c10">Verificar dominio propio en Resend y actualizar campo <code>from</code> en email.ts [L-03]</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c11"><label for="c11">Confirmar que <code>RESEND_API_KEY</code> esta configurado en el entorno de produccion</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c12"><label for="c12">Promover admin inicial en Supabase: <code>UPDATE public.profiles SET role = 'admin' WHERE email = 'medinajd205@gmail.com';</code></label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c13"><label for="c13">Verificar que los buckets de Storage (avatars, gallery, barber-photos, hero-images) estan creados con las politicas del schema</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c14"><label for="c14">Configurar dominio de produccion en Supabase Dashboard &rarr; Auth &rarr; URL Configuration &rarr; Site URL y Redirect URLs</label>
+        </div>
+        <div class="checklist-item">
+          <input type="checkbox" id="c15"><label for="c15">Registrar dominio en HSTS Preload list: https://hstspreload.org [L-01]</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p>Reporte generado el <span>30 de Abril de 2026</span> &middot; Reyko Nakao SaaS Barbershop &middot; Auditoria de seguridad pre-produccion</p>
+  <p style="margin-top:6px">Stack: Next.js 16.2.4 &middot; React 19 &middot; Supabase &middot; TypeScript &middot; Tailwind CSS 4</p>
+</footer>
+
+<script>
+  function toggle(header) {
+    header.closest('.issue').classList.toggle('open');
+  }
+  // Persistir checkboxes en localStorage
+  document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    const key = 'sec_' + cb.id;
+    if (localStorage.getItem(key) === 'true') cb.checked = true;
+    cb.addEventListener('change', () => localStorage.setItem(key, cb.checked));
+  });
+</script>
+</body>
+</html>

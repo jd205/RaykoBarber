@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(curl *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(npm audit *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Total vulns:', d.get\\('metadata',{}\\).get\\('vulnerabilities',{}\\)\\); [print\\(f'{k}: severity={v[\\\\\"severity\\\\\"]}'\\) for k,v in d.get\\('vulnerabilities',{}\\).items\\(\\)]\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(del audit_raw.json)",
+      "Bash(node -e \"const {execSync}=require\\('child_process'\\);const r=execSync\\('npm audit --json',{encoding:'utf8',stdio:['pipe','pipe','pipe']}\\);const d=JSON.parse\\(r\\);const m=d.metadata?.vulnerabilities||{};console.log\\('SUMMARY:',JSON.stringify\\(m\\)\\);Object.entries\\(d.vulnerabilities||{}\\).forEach\\(\\([k,v]\\)=>{\\(v.via||[]\\).filter\\(x=>typeof x==='object'\\).forEach\\(a=>{console.log\\(k+'|'+v.severity+'|'+\\(a.title||'?'\\)+'|'+\\(a.url||'?'\\)+'|'+\\(a.cvss?.score||'?'\\)\\)}\\)}\\);\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); vulns=d.get\\('vulnerabilities',{}\\); [print\\(k, v.get\\('severity'\\), v.get\\('fixAvailable'\\)\\) for k,v in vulns.items\\(\\) if v.get\\('severity'\\) in \\('critical','high','moderate'\\)]\")",
+      "Bash(python3 *)",
+      "Bash(node -e \"const d=require\\('./audit_raw.json'\\);const v=d.metadata?.vulnerabilities||{};console.log\\(JSON.stringify\\(v\\)\\)\")"
+    ]
+  }
+}
