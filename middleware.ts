@@ -1,4 +1,3 @@
-import { updateSession } from '@/lib/supabase/proxy'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -24,33 +23,50 @@ function buildCsp(nonce: string): string {
   ].join('; ')
 }
 
-export default async function proxy(request: NextRequest) {
-  // Per-request nonce — btoa+randomUUID is Edge-runtime safe
+export default async function middleware(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID())
   const csp = buildCsp(nonce)
 
-  // Pass nonce as request header so Next.js injects it into its inline scripts
-  const response = await updateSession(request, { 'x-nonce': nonce })
-  response.headers.set('Content-Security-Policy', csp)
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+
+  let supabaseResponse = NextResponse.next({
+    request: { headers: requestHeaders },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request: { headers: requestHeaders },
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  await supabase.auth.getClaims()
+
+  supabaseResponse.headers.set('Content-Security-Policy', csp)
 
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return request.cookies.getAll() },
-          setAll() {},
-        },
-      }
-    )
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.redirect(new URL('/?auth=login', request.url))
     }
   }
 
-  return response
+  return supabaseResponse
 }
 
 export const config = {
