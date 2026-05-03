@@ -55,15 +55,12 @@ export default async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getClaims()
+  const { data: { user } } = await supabase.auth.getUser()
 
   supabaseResponse.headers.set('Content-Security-Policy', csp)
 
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.redirect(new URL('/?auth=login', request.url))
-    }
+  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
+    return NextResponse.redirect(new URL('/?auth=login', request.url))
   }
 
   return supabaseResponse
