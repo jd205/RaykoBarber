@@ -23,7 +23,7 @@ function buildCsp(nonce: string): string {
   ].join('; ')
 }
 
-export default async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID())
   const csp = buildCsp(nonce)
 
