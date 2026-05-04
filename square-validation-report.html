@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Square Validation Report — The Noble</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    padding: 32px 16px;
+    line-height: 1.6;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  header {
+    background: #111;
+    color: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  header .icon { font-size: 48px; }
+  header h1 { font-size: 26px; font-weight: 700; }
+  header p { color: #aaa; font-size: 14px; margin-top: 4px; }
+  .badge-date {
+    margin-top: 10px;
+    display: inline-block;
+    background: #f59e0b;
+    color: #000;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+
+  /* Summary bar */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .summary-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    border-top: 4px solid #ccc;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .summary-card.critical { border-top-color: #ef4444; }
+  .summary-card.warning  { border-top-color: #f59e0b; }
+  .summary-card.ok       { border-top-color: #22c55e; }
+  .summary-card .num {
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .summary-card.critical .num { color: #ef4444; }
+  .summary-card.warning  .num { color: #f59e0b; }
+  .summary-card.ok       .num { color: #22c55e; }
+  .summary-card .label { font-size: 13px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Section */
+  .section {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .section h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-icon { font-size: 20px; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: #f8f8f8;
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #eee;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+
+  code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    word-break: break-all;
+  }
+  code.secret { background: #fef3c7; color: #92400e; }
+  code.good   { background: #dcfce7; color: #166534; }
+  code.bad    { background: #fee2e2; color: #991b1b; }
+
+  /* Status badges */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge-critical { background: #fee2e2; color: #b91c1c; }
+  .badge-warning  { background: #fef3c7; color: #b45309; }
+  .badge-ok       { background: #dcfce7; color: #166534; }
+  .badge-info     { background: #dbeafe; color: #1d4ed8; }
+  .badge-unknown  { background: #f0f0f0; color: #555; }
+
+  /* Alert boxes */
+  .alert {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .alert h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .alert p  { color: inherit; opacity: 0.85; }
+  .alert ul { margin-top: 6px; padding-left: 16px; }
+  .alert li { margin-bottom: 3px; }
+  .alert-critical { background: #fee2e2; color: #7f1d1d; border-left: 4px solid #ef4444; }
+  .alert-warning  { background: #fef3c7; color: #78350f; border-left: 4px solid #f59e0b; }
+  .alert-ok       { background: #dcfce7; color: #14532d; border-left: 4px solid #22c55e; }
+  .alert-info     { background: #dbeafe; color: #1e3a8a; border-left: 4px solid #3b82f6; }
+
+  /* Steps */
+  .steps { counter-reset: steps; }
+  .step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #111;
+    color: #f59e0b;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-body h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .step-body p  { font-size: 13px; color: #444; margin-bottom: 6px; }
+  .step-body code { display: inline-block; }
+
+  /* Env var block */
+  .env-block {
+    background: #111;
+    color: #f8f8f8;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    margin-top: 8px;
+    overflow-x: auto;
+  }
+  .env-block .key    { color: #93c5fd; }
+  .env-block .val    { color: #86efac; }
+  .env-block .cmt    { color: #6b7280; font-style: italic; }
+  .env-block .err    { color: #f87171; text-decoration: line-through; }
+  .env-block .fix    { color: #fbbf24; }
+
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checkbox {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+  .checkbox.done   { background: #22c55e; border-color: #22c55e; }
+  .checkbox.todo   { border-color: #f59e0b; }
+  .checkbox.error  { border-color: #ef4444; background: #fee2e2; }
+  .checklist .item-label { font-weight: 600; }
+  .checklist .item-detail { color: #666; font-size: 12px; }
+  .checklist .where { color: #3b82f6; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Architecture diagram */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+  }
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #f8f8f8;
+  }
+  .flow-row.highlight { background: #fef3c7; }
+  .flow-row.error     { background: #fee2e2; }
+  .flow-arrow { color: #999; padding: 0 4px; }
+  .flow-label { font-weight: 600; min-width: 180px; }
+  .flow-desc  { color: #555; }
+
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .section { box-shadow: none; border: 1px solid #eee; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="icon">◼</div>
+    <div>
+      <h1>Square Configuration Validation Report</h1>
+      <p>App: The Noble Barbershop &nbsp;·&nbsp; reyco-barber-c6dm.vercel.app</p>
+      <span class="badge-date">Generado: 2026-05-04</span>
+    </div>
+  </header>
+
+  <!-- SUMMARY -->
+  <div class="summary-grid">
+    <div class="summary-card critical">
+      <div class="num">2</div>
+      <div class="label">Críticos (bloquean el OAuth)</div>
+    </div>
+    <div class="summary-card warning">
+      <div class="num">2</div>
+      <div class="label">Advertencias (Vercel)</div>
+    </div>
+    <div class="summary-card ok">
+      <div class="num">5</div>
+      <div class="label">Correctos</div>
+    </div>
+  </div>
+
+  <!-- SECTION: Problemas críticos -->
+  <div class="section">
+    <h2><span class="section-icon">🚨</span> Problemas Críticos Encontrados</h2>
+
+    <div class="alert alert-critical">
+      <div class="alert-icon">❌</div>
+      <div>
+        <h3>CRÍTICO #1 — SQUARE_CLIENT_SECRET tiene el valor incorrecto</h3>
+        <p>
+          El valor actual de <code>SQUARE_CLIENT_SECRET</code> es <strong>idéntico</strong> a <code>SQUARE_ACCESS_TOKEN</code>.
+          Un access token (<code>EAAAl...</code>) NO es el client secret de OAuth.
+          El OAuth client secret del sandbox tiene el formato <code>sandbox-sq0csb-...</code>
+          y se obtiene en la consola de Square Developer → tu app → pestaña OAuth.
+        </p>
+        <ul>
+          <li>Mientras esté mal, el botón "Connect with Square" siempre fallará con <code>token_exchange_failed</code></li>
+          <li>El flujo OAuth completo está bloqueado por este único error</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="alert alert-critical">
+      <div class="alert-icon">❌</div>
+      <div>
+        <h3>CRÍTICO #2 — NEXT_PUBLIC_SITE_URL apunta a localhost en Vercel</h3>
+        <p>
+          <code>NEXT_PUBLIC_SITE_URL=http://localhost:3000</code> en <code>.env.local</code> es correcto para desarrollo local,
+          pero en Vercel este valor se usa para construir la <strong>Redirect URI</strong>:
+          <code>http://localhost:3000/api/square/oauth/callback</code>.
+          Square rechazará este redirect porque no coincide con el dominio autorizado.
+          Vercel necesita su propia variable de entorno con el dominio real.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Tabla de variables -->
+  <div class="section">
+    <h2><span class="section-icon">🔍</span> Análisis de Variables (.env.local)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Valor actual</th>
+          <th>Estado</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>SQUARE_CLIENT_ID</code></td>
+          <td><code>sq0idp-R9zzrjm…</code></td>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td>Application ID de OAuth (formato correcto para producción y sandbox)</td>
+        </tr>
+        <tr>
+          <td><code>SQUARE_CLIENT_SECRET</code></td>
+          <td><code class="bad">EAAAl9XYdwtm…</code></td>
+          <td><span class="badge badge-critical">CRÍTICO</span></td>
+          <td>
+            <strong>Es el mismo valor que SQUARE_ACCESS_TOKEN.</strong><br/>
+            Debe ser el OAuth Client Secret del sandbox:<br/>
+            Formato esperado: <code class="good">sandbox-sq0csb-…</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>SQUARE_ENVIRONMENT</code></td>
+          <td><code>sandbox</code></td>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td>Controla qué endpoint de Square se usa (sandbox vs production)</td>
+        </tr>
+        <tr>
+          <td><code>SQUARE_ACCESS_TOKEN</code></td>
+          <td><code>EAAAl9XYdwtm…</code></td>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td>Token estático de sandbox — usado como fallback hasta conectar via OAuth</td>
+        </tr>
+        <tr>
+          <td><code>NEXT_PUBLIC_SQUARE_APP_ID</code></td>
+          <td><code>R9zzrjmgDzMi…</code></td>
+          <td><span class="badge badge-warning">VERIFICAR</span></td>
+          <td>
+            Usado por el Web Payments SDK (formulario de tarjeta).<br/>
+            En sandbox puede necesitar el prefijo <code>sandbox-sq0idb-</code>.<br/>
+            Verificar en Square Developer → Sandbox → Application ID.
+          </td>
+        </tr>
+        <tr>
+          <td><code>NEXT_PUBLIC_SQUARE_LOCATION_ID</code></td>
+          <td><code>L4A386D709MTW</code></td>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td>Location ID de fallback — el OAuth lo reemplazará con el valor del DB</td>
+        </tr>
+        <tr>
+          <td><code>NEXT_PUBLIC_SITE_URL</code></td>
+          <td><code class="bad">http://localhost:3000</code></td>
+          <td><span class="badge badge-critical">CRÍTICO EN VERCEL</span></td>
+          <td>
+            Correcto localmente. En Vercel debe ser:<br/>
+            <code class="good">https://reyco-barber-c6dm.vercel.app</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>SQUARE_WEBHOOK_SIGNATURE_KEY</code></td>
+          <td><code>w7AOY-S9iuu4…</code></td>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td>Firma para verificar webhooks de Square (no afecta el OAuth)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECTION: Flujo y dónde falla -->
+  <div class="section">
+    <h2><span class="section-icon">🔄</span> Cómo funciona el flujo OAuth y dónde falla</h2>
+    <div class="flow">
+      <div class="flow-row">
+        <span class="flow-label">Admin → "Connect with Square"</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-desc">Genera state CSRF, construye URL con <code>SQUARE_CLIENT_ID</code></span>
+        <span class="badge badge-ok" style="margin-left:auto">OK</span>
+      </div>
+      <div class="flow-row highlight">
+        <span class="flow-label">Redirect a Square OAuth</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-desc">Square muestra pantalla de autorización al admin</span>
+        <span class="badge badge-warning" style="margin-left:auto">VERIFICAR REDIRECT URI</span>
+      </div>
+      <div class="flow-row">
+        <span class="flow-label">Admin autoriza</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-desc">Square devuelve code + state a <code>/api/square/oauth/callback</code></span>
+        <span class="badge badge-ok" style="margin-left:auto">OK</span>
+      </div>
+      <div class="flow-row error">
+        <span class="flow-label">Callback: intercambio de código</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-desc"><code>obtainToken({ clientId, clientSecret, code })</code> — falla porque <code>SQUARE_CLIENT_SECRET</code> es incorrecto</span>
+        <span class="badge badge-critical" style="margin-left:auto">FALLA AQUÍ</span>
+      </div>
+      <div class="flow-row" style="opacity:0.4">
+        <span class="flow-label">Guardar tokens en DB</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-desc">Credenciales guardadas en <code>square_oauth_credentials</code></span>
+        <span class="badge badge-unknown" style="margin-left:auto">NUNCA LLEGA</span>
+      </div>
+      <div class="flow-row" style="opacity:0.4">
+        <span class="flow-label">Redirect a /dashboard</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-desc">Con <code>?sq_connected=1</code> si todo fue bien</span>
+        <span class="badge badge-unknown" style="margin-left:auto">NUNCA LLEGA</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Square Developer Console checklist -->
+  <div class="section">
+    <h2><span class="section-icon">⚙️</span> Checklist en Square Developer Console</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:16px;">
+      Ve a <strong>developer.squareup.com</strong> → tu aplicación → sigue este checklist:
+    </p>
+    <ul class="checklist">
+      <li>
+        <div class="checkbox todo"></div>
+        <div>
+          <div class="item-label">Obtener el OAuth Client Secret (sandbox)</div>
+          <div class="item-detail">Pestaña <strong>OAuth</strong> → sección "Sandbox" → click "Show" junto a "OAuth client secret"<br/>El valor tiene formato <code>sandbox-sq0csb-…</code> — copiar como <code>SQUARE_CLIENT_SECRET</code></div>
+          <div class="where">▶ Dónde: tu app → pestaña OAuth → Sandbox section</div>
+        </div>
+      </li>
+      <li>
+        <div class="checkbox todo"></div>
+        <div>
+          <div class="item-label">Registrar Redirect URL para Vercel</div>
+          <div class="item-detail">En la sección OAuth, agregar:<br/>
+            <code>https://reyco-barber-c6dm.vercel.app/api/square/oauth/callback</code>
+          </div>
+          <div class="where">▶ Dónde: tu app → pestaña OAuth → "Redirect URL"</div>
+        </div>
+      </li>
+      <li>
+        <div class="checkbox todo"></div>
+        <div>
+          <div class="item-label">Registrar Redirect URL para localhost</div>
+          <div class="item-detail">Agregar para desarrollo local:<br/>
+            <code>http://localhost:3000/api/square/oauth/callback</code>
+          </div>
+          <div class="where">▶ Dónde: tu app → pestaña OAuth → "Redirect URL"</div>
+        </div>
+      </li>
+      <li>
+        <div class="checkbox todo"></div>
+        <div>
+          <div class="item-label">Verificar Application ID del sandbox</div>
+          <div class="item-detail">Pestaña <strong>Credentials</strong> → pestaña "Sandbox" → "Application ID"<br/>Si tiene prefijo <code>sandbox-sq0idb-…</code>, ese es el valor correcto para <code>NEXT_PUBLIC_SQUARE_APP_ID</code></div>
+          <div class="where">▶ Dónde: tu app → pestaña Credentials → Sandbox</div>
+        </div>
+      </li>
+      <li>
+        <div class="checkbox todo"></div>
+        <div>
+          <div class="item-label">Confirmar OAuth Permissions (scopes)</div>
+          <div class="item-detail">Verificar que estos 4 scopes estén habilitados:<br/>
+            <code>PAYMENTS_WRITE</code> &nbsp;
+            <code>PAYMENTS_READ</code> &nbsp;
+            <code>MERCHANT_PROFILE_READ</code> &nbsp;
+            <code>ITEMS_READ</code>
+          </div>
+          <div class="where">▶ Dónde: tu app → pestaña OAuth → "OAuth Permissions"</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- SECTION: Variables en Vercel -->
+  <div class="section">
+    <h2><span class="section-icon">🚀</span> Variables de Entorno en Vercel Dashboard</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:16px;">
+      Ve a <strong>vercel.com → tu proyecto → Settings → Environment Variables</strong> y configura:
+    </p>
+    <div class="env-block">
+      <span class="cmt"># Dominio real — CRÍTICO para que el Redirect URI funcione</span><br/>
+      <span class="key">NEXT_PUBLIC_SITE_URL</span>=<span class="fix">https://reyco-barber-c6dm.vercel.app</span><br/>
+      <br/>
+      <span class="cmt"># OAuth App Identity (Developer Console → OAuth → Application ID)</span><br/>
+      <span class="key">SQUARE_CLIENT_ID</span>=<span class="val">sq0idp-R9zzrjmgDzMieP4VSN5Ksw</span><br/>
+      <br/>
+      <span class="cmt"># OAuth Client Secret — obtener de Square Developer → OAuth → Sandbox → "Show"</span><br/>
+      <span class="key">SQUARE_CLIENT_SECRET</span>=<span class="fix">sandbox-sq0csb-[tu-valor-real-de-la-consola]</span><br/>
+      <br/>
+      <span class="cmt"># Ambiente (sandbox = pruebas, production = real)</span><br/>
+      <span class="key">SQUARE_ENVIRONMENT</span>=<span class="val">sandbox</span><br/>
+      <br/>
+      <span class="cmt"># Fallback hasta conectar OAuth (sandbox access token estático)</span><br/>
+      <span class="key">SQUARE_ACCESS_TOKEN</span>=<span class="val">EAAAl9XYdwtmUD0QB10p5AvUcT3TGKAR-…</span><br/>
+      <br/>
+      <span class="cmt"># Web Payments SDK — verificar formato correcto en Square Console</span><br/>
+      <span class="key">NEXT_PUBLIC_SQUARE_APP_ID</span>=<span class="val">R9zzrjmgDzMieP4VSN5Ksw</span> <span class="cmt"># o sandbox-sq0idb-…</span><br/>
+      <span class="key">NEXT_PUBLIC_SQUARE_LOCATION_ID</span>=<span class="val">L4A386D709MTW</span><br/>
+    </div>
+    <div class="alert alert-warning" style="margin-top:14px">
+      <div class="alert-icon">⚠️</div>
+      <div>
+        <h3>Importante: Redeploy después de configurar</h3>
+        <p>Las variables de entorno en Vercel solo toman efecto en <strong>nuevos deployments</strong>. Después de configurarlas, ve a Vercel → Deployments → "Redeploy" en el commit más reciente.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Pasos para corregir -->
+  <div class="section">
+    <h2><span class="section-icon">🛠️</span> Pasos para Corregir (en orden)</h2>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>Ir a Square Developer Console y obtener el OAuth Client Secret</h3>
+          <p>
+            → <strong>developer.squareup.com</strong><br/>
+            → Tu aplicación (The Noble / Reyco Barber)<br/>
+            → Pestaña <strong>OAuth</strong><br/>
+            → En la sección "Sandbox", busca "OAuth client secret"<br/>
+            → Haz click en <strong>"Show"</strong><br/>
+            → Copia el valor (empieza con <code>sandbox-sq0csb-</code>)
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>Agregar las Redirect URLs en el Developer Console</h3>
+          <p>En la misma pestaña OAuth → "Redirect URL" → agregar ambas:</p>
+          <div class="env-block" style="margin-top:8px">
+            https://reyco-barber-c6dm.vercel.app/api/square/oauth/callback<br/>
+            http://localhost:3000/api/square/oauth/callback
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>Corregir SQUARE_CLIENT_SECRET en .env.local (local)</h3>
+          <p>Abre <code>.env.local</code> y cambia la línea:</p>
+          <div class="env-block">
+            <span class="cmt"># ANTES (incorrecto — es el access token):</span><br/>
+            <span class="err">SQUARE_CLIENT_SECRET=EAAAl9XYdwtmUD0QB10p5AvUcT3TGKAR-…</span><br/>
+            <br/>
+            <span class="cmt"># DESPUÉS (el valor real de la consola):</span><br/>
+            <span class="key">SQUARE_CLIENT_SECRET</span>=<span class="fix">sandbox-sq0csb-[tu-valor]</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3>Configurar variables en Vercel Dashboard</h3>
+          <p>
+            → vercel.com → tu proyecto → <strong>Settings → Environment Variables</strong><br/>
+            Agrega o edita estas variables (aplican a todos los environments):
+          </p>
+          <div class="env-block">
+            <span class="key">NEXT_PUBLIC_SITE_URL</span>=<span class="fix">https://reyco-barber-c6dm.vercel.app</span><br/>
+            <span class="key">SQUARE_CLIENT_ID</span>=<span class="val">sq0idp-R9zzrjmgDzMieP4VSN5Ksw</span><br/>
+            <span class="key">SQUARE_CLIENT_SECRET</span>=<span class="fix">sandbox-sq0csb-[tu-valor]</span><br/>
+            <span class="key">SQUARE_ENVIRONMENT</span>=<span class="val">sandbox</span><br/>
+            <span class="key">SQUARE_ACCESS_TOKEN</span>=<span class="val">EAAAl9XYdwtmUD0QB10p5AvUcT3TGKAR-…</span><br/>
+            <span class="key">NEXT_PUBLIC_SQUARE_APP_ID</span>=<span class="val">[verificar en consola]</span><br/>
+            <span class="key">NEXT_PUBLIC_SQUARE_LOCATION_ID</span>=<span class="val">L4A386D709MTW</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h3>Hacer Redeploy en Vercel</h3>
+          <p>
+            → Vercel Dashboard → Deployments<br/>
+            → Click en los 3 puntos del deployment más reciente<br/>
+            → <strong>"Redeploy"</strong> (sin usar el caché si hay problemas)<br/>
+            → Esperar que termine el build (~2 minutos)
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <h3>Probar el flujo completo</h3>
+          <p>
+            1. Ve a <code>/dashboard</code> → pestaña <strong>Payments</strong><br/>
+            2. Click "Connect with Square" → debe redirigir a <code>connect.squareupsandbox.com</code><br/>
+            3. Autorizar con tu cuenta de sandbox<br/>
+            4. Debe volver a <code>/dashboard?sq_connected=1</code><br/>
+            5. La pestaña Payments debe mostrar el nombre del negocio y Location ID
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECTION: Diferencia entre credenciales -->
+  <div class="section">
+    <h2><span class="section-icon">💡</span> Aclaración: Los 3 tipos de credenciales de Square</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Credencial</th>
+          <th>Para qué sirve</th>
+          <th>Quién la configura</th>
+          <th>Formato (sandbox)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>SQUARE_CLIENT_ID</code></td>
+          <td>Identifica tu <strong>aplicación</strong> en el flujo OAuth (como el "username" del app)</td>
+          <td>Tú, 1 sola vez en Developer Console</td>
+          <td><code>sq0idp-…</code></td>
+        </tr>
+        <tr>
+          <td><code>SQUARE_CLIENT_SECRET</code></td>
+          <td>"Password" de tu aplicación — se usa solo en el servidor para intercambiar el code por tokens</td>
+          <td>Tú, 1 sola vez en Developer Console</td>
+          <td><code>sandbox-sq0csb-…</code></td>
+        </tr>
+        <tr>
+          <td><code>access_token</code> (en DB)</td>
+          <td>Token del <strong>merchant</strong> — permite hacer pagos en su cuenta. Se captura automáticamente via OAuth</td>
+          <td>Se captura automático cuando el admin hace click en "Connect with Square"</td>
+          <td><code>EAAAl…</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="alert alert-info" style="margin-top:14px">
+      <div class="alert-icon">ℹ️</div>
+      <div>
+        <h3>El sistema es automático — una vez configurados los 2 env vars del Developer</h3>
+        <p>
+          Una vez que <code>SQUARE_CLIENT_ID</code> y <code>SQUARE_CLIENT_SECRET</code> están correctos
+          (son los de <em>tu aplicación</em>), el flujo OAuth captura automáticamente
+          el <code>access_token</code>, <code>refresh_token</code>, <code>merchant_id</code>,
+          <code>location_id</code> y <code>merchant_name</code> del admin.
+          El admin no necesita copiar ni pegar ningún ID — solo hace click en "Connect with Square".
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: Factibilidad -->
+  <div class="section">
+    <h2><span class="section-icon">✅</span> Factibilidad</h2>
+    <div class="alert alert-ok">
+      <div class="alert-icon">✅</div>
+      <div>
+        <h3>100% factible — el código está correcto, solo faltan 2 valores de configuración</h3>
+        <p>
+          La implementación del OAuth (archivos <code>square-oauth.ts</code>, <code>callback/route.ts</code>,
+          <code>square-connect.tsx</code>) está completa y correcta.
+          El build local pasa sin errores TypeScript.
+          El único bloqueador es <code>SQUARE_CLIENT_SECRET</code> con valor incorrecto.
+          Corregir ese valor + configurar Vercel = sistema funcional.
+        </p>
+      </div>
+    </div>
+    <table style="margin-top:12px">
+      <thead>
+        <tr>
+          <th>Componente</th>
+          <th>Estado</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Código OAuth (Next.js)</td>
+          <td><span class="badge badge-ok">COMPLETO</span></td>
+          <td>Build local limpio, sin errores TypeScript</td>
+        </tr>
+        <tr>
+          <td>DB migration (Supabase)</td>
+          <td><span class="badge badge-info">VERIFICAR</span></td>
+          <td>Confirmar que la tabla <code>square_oauth_credentials</code> existe en Supabase</td>
+        </tr>
+        <tr>
+          <td>SQUARE_CLIENT_SECRET</td>
+          <td><span class="badge badge-critical">BLOQUEADOR</span></td>
+          <td>Obtener de Square Developer Console → OAuth → Sandbox Secret</td>
+        </tr>
+        <tr>
+          <td>Redirect URLs en Square Console</td>
+          <td><span class="badge badge-warning">PENDIENTE</span></td>
+          <td>Registrar URLs de local + Vercel</td>
+        </tr>
+        <tr>
+          <td>Env vars en Vercel</td>
+          <td><span class="badge badge-warning">PENDIENTE</span></td>
+          <td>Especialmente NEXT_PUBLIC_SITE_URL y SQUARE_CLIENT_SECRET</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    Generado automáticamente · The Noble Barbershop · SAASbarberiaSquare · 2026-05-04
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getSquareClient } from '@/lib/square/client'
 import { z } from 'zod'
 
 const MAX_DAYS_AHEAD = 30
@@ -20,6 +21,7 @@ const bookSchema = z.object({
   appointmentDate: z.string().refine(isValidFutureDate, {
     message: `Appointment must be in the future and within ${MAX_DAYS_AHEAD} days`,
   }),
+  paymentMethod: z.enum(['card', 'cash']).default('card'),
 })
 
 const rescheduleSchema = z.object({
@@ -36,9 +38,10 @@ const cancelSchema = z.object({
 export async function bookAppointment(
   serviceId: string,
   barberId: string,
-  appointmentDate: string
+  appointmentDate: string,
+  paymentMethod: 'card' | 'cash' = 'card'
 ): Promise<{ error?: string; appointmentId?: string }> {
-  const parsed = bookSchema.safeParse({ serviceId, barberId, appointmentDate })
+  const parsed = bookSchema.safeParse({ serviceId, barberId, appointmentDate, paymentMethod })
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
 
   const supabase = await createClient()
@@ -61,6 +64,7 @@ export async function bookAppointment(
       barber_id: parsed.data.barberId,
       appointment_date: parsed.data.appointmentDate,
       status: 'scheduled',
+      payment_method: parsed.data.paymentMethod,
     })
     .select('id')
     .single()
@@ -78,14 +82,57 @@ export async function bookAppointment(
   const barberName = (barber as { name?: string } | null)?.name || parsed.data.barberId
   const dateFormatted = new Date(parsed.data.appointmentDate).toLocaleString()
 
+  const payLabel = parsed.data.paymentMethod === 'cash' ? 'Pay in person (cash)' : 'Pay by card'
   try {
     await supabase.from('notifications').insert({
       type: 'new_booking',
       appointment_id: appointment.id,
       client_name: clientName,
-      message: `${clientName} booked ${serviceName} with ${barberName} on ${dateFormatted}`,
+      message: `${clientName} booked ${serviceName} with ${barberName} on ${dateFormatted} · ${payLabel}`,
     })
   } catch { /* notification failure must not block booking */ }
+
+  // Attempt to sync to Square Bookings (non-blocking — missing IDs = silent skip)
+  try {
+    const [{ data: barberSq }, { data: serviceSq }, { data: creds }] = await Promise.all([
+      supabase.from('barbers').select('square_team_member_id').eq('id', parsed.data.barberId).single(),
+      supabase.from('services').select('square_catalog_variation_id, square_catalog_variation_version, duration_minutes').eq('id', parsed.data.serviceId).single(),
+      supabase.from('square_oauth_credentials').select('location_id').eq('id', 1).single(),
+    ])
+
+    const teamMemberId = (barberSq as { square_team_member_id?: string } | null)?.square_team_member_id
+    const variationId = (serviceSq as { square_catalog_variation_id?: string } | null)?.square_catalog_variation_id
+    const variationVersion = (serviceSq as { square_catalog_variation_version?: number } | null)?.square_catalog_variation_version
+    const durationMinutes = (serviceSq as { duration_minutes?: number } | null)?.duration_minutes ?? 30
+    const locationId = (creds as { location_id?: string } | null)?.location_id
+      ?? process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? ''
+
+    if (teamMemberId && variationId && variationVersion && locationId) {
+      const squareClient = await getSquareClient()
+      const bookingRes = await squareClient.bookings.create({
+        idempotencyKey: appointment.id,
+        booking: {
+          startAt: parsed.data.appointmentDate,
+          locationId,
+          appointmentSegments: [
+            {
+              durationMinutes,
+              serviceVariationId: variationId,
+              teamMemberId,
+              serviceVariationVersion: BigInt(variationVersion),
+            },
+          ],
+        },
+      })
+      const squareBookingId = bookingRes.booking?.id
+      if (squareBookingId) {
+        await supabase
+          .from('appointments')
+          .update({ square_booking_id: squareBookingId })
+          .eq('id', appointment.id)
+      }
+    }
+  } catch { /* Square sync failure must not block the booking */ }
 
   return { appointmentId: appointment.id }
 }

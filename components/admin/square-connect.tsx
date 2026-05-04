@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CreditCard, CheckCircle2, AlertCircle, Loader2,
-  Unplug, ExternalLink, RefreshCw, Clock,
+  Unplug, ExternalLink, RefreshCw, Clock, CalendarCheck, Users, Scissors,
 } from 'lucide-react'
 import {
   getSquareConnectionStatus,
@@ -12,6 +12,12 @@ import {
   disconnectSquare,
   type SquareConnectionStatus,
 } from '@/app/actions/square-oauth'
+import {
+  syncSquareServices,
+  syncSquareTeamMembers,
+  getSquareSyncStatus,
+  type SquareSyncStatus,
+} from '@/app/actions/square-sync'
 
 const DISCONNECTED: SquareConnectionStatus = {
   connected: false,
@@ -21,6 +27,10 @@ const DISCONNECTED: SquareConnectionStatus = {
   appId: null,
   connectedAt: null,
   tokenExpiresAt: null,
+}
+
+const SYNC_ZERO: SquareSyncStatus = {
+  servicesTotal: 0, servicesSynced: 0, barbersTotal: 0, barbersSynced: 0,
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -38,6 +48,9 @@ export function SquareConnect() {
   const [disconnecting, startDisconnect] = useTransition()
   const [flashError, setFlashError] = useState<string | null>(null)
   const [disconnectOk, setDisconnectOk] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<SquareSyncStatus>(SYNC_ZERO)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
 
   // Read URL params set by the OAuth callback, then clean the URL
   useEffect(() => {
@@ -52,8 +65,9 @@ export function SquareConnect() {
   }, [])
 
   useEffect(() => {
-    getSquareConnectionStatus().then(s => {
+    Promise.all([getSquareConnectionStatus(), getSquareSyncStatus()]).then(([s, sync]) => {
       setStatus(s)
+      setSyncStatus(sync)
       setLoading(false)
     })
   }, [])
@@ -67,6 +81,20 @@ export function SquareConnect() {
       setDisconnectOk(true)
       setTimeout(() => setDisconnectOk(false), 3000)
     })
+  }
+
+  const handleSync = async () => {
+    setSyncing(true)
+    setSyncResult(null)
+    const [svcRes, tmRes] = await Promise.all([syncSquareServices(), syncSquareTeamMembers()])
+    const fresh = await getSquareSyncStatus()
+    setSyncStatus(fresh)
+    setSyncing(false)
+    if (svcRes.error || tmRes.error) {
+      setSyncResult(`Error: ${svcRes.error ?? tmRes.error}`)
+    } else {
+      setSyncResult(`Synced ${svcRes.synced} services · Matched ${tmRes.matched}/${tmRes.total} team members`)
+    }
   }
 
   const daysUntilExpiry = status.tokenExpiresAt
@@ -216,6 +244,73 @@ export function SquareConnect() {
         <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
           <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
           <p className="text-red-400 text-sm">{flashError}</p>
+        </div>
+      )}
+
+      {/* Square Appointments Sync */}
+      {status.connected && (
+        <div className="border-t border-white/5 pt-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <CalendarCheck className="w-4 h-4 text-yellow-500" />
+            <h3 className="text-sm font-bold text-white">Square Appointments Sync</h3>
+          </div>
+          <p className="text-gray-500 text-xs leading-relaxed">
+            Sync your services and barbers to Square so new bookings appear automatically in the Square Appointments calendar.
+          </p>
+
+          {/* Sync status bars */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-black/40 border border-white/5 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Scissors className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Services</span>
+              </div>
+              <p className="text-white font-bold text-lg">
+                {syncStatus.servicesSynced}
+                <span className="text-gray-500 font-normal text-sm"> / {syncStatus.servicesTotal}</span>
+              </p>
+              <p className="text-gray-600 text-xs mt-0.5">synced to Square catalog</p>
+            </div>
+            <div className="bg-black/40 border border-white/5 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Users className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Barbers</span>
+              </div>
+              <p className="text-white font-bold text-lg">
+                {syncStatus.barbersSynced}
+                <span className="text-gray-500 font-normal text-sm"> / {syncStatus.barbersTotal}</span>
+              </p>
+              <p className="text-gray-600 text-xs mt-0.5">matched to team members</p>
+            </div>
+          </div>
+
+          {syncStatus.barbersSynced < syncStatus.barbersTotal && (
+            <div className="flex items-start gap-2 bg-yellow-500/5 border border-yellow-500/15 rounded-xl px-3 py-2.5">
+              <AlertCircle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <p className="text-yellow-400/80 text-xs leading-relaxed">
+                Barbers not matched: make sure their names in Square Team match the names in your Barbers list exactly, then click Sync.
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50"
+          >
+            {syncing
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Syncing…</>
+              : <><RefreshCw className="w-4 h-4" /> Sync Now</>}
+          </button>
+
+          {syncResult && (
+            <p className={`text-xs flex items-center gap-1.5 ${syncResult.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
+              {syncResult.startsWith('Error')
+                ? <AlertCircle className="w-3.5 h-3.5" />
+                : <CheckCircle2 className="w-3.5 h-3.5" />}
+              {syncResult}
+            </p>
+          )}
         </div>
       )}
 

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { format, addDays } from 'date-fns'
 import { DayPicker } from 'react-day-picker'
 import 'react-day-picker/dist/style.css'
-import { Calendar as CalendarIcon, Clock, Scissors, User, Loader2, LogIn, AlertCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, Clock, Scissors, User, Loader2, LogIn, AlertCircle, CreditCard, Banknote, CheckCircle2 } from 'lucide-react'
 import clsx from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { bookAppointment, getBarberBookedSlots } from '@/app/actions/appointments'
@@ -89,6 +89,8 @@ export function BookingCalendar({ dict, squareAppId, squareLocationId }: { dict:
   const [conflictModal, setConflictModal] = useState(false)
   // Set after appointment is created; used by the payment step
   const [currentAppointmentId, setCurrentAppointmentId] = useState<string | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('card')
+  const [cashBooked, setCashBooked] = useState(false)
 
   const steps = [
     { id: 1, title: dict.service },
@@ -132,7 +134,7 @@ export function BookingCalendar({ dict, squareAppId, squareLocationId }: { dict:
     setLoading(true)
     setError(null)
     const isoDate = parseDateTime(date, time)
-    const result = await bookAppointment(selectedService, selectedBarber, isoDate)
+    const result = await bookAppointment(selectedService, selectedBarber, isoDate, paymentMethod)
     setLoading(false)
     if (result.error === 'SLOT_OCCUPIED') {
       const slotISOs = timeSlots.map(t => parseDateTime(date, t))
@@ -142,9 +144,12 @@ export function BookingCalendar({ dict, squareAppId, squareLocationId }: { dict:
       return
     }
     if (result.error) { setError(result.error); return }
-    // Appointment created — proceed to payment
-    setCurrentAppointmentId(result.appointmentId!)
-    setStep(5)
+    if (paymentMethod === 'cash') {
+      setCashBooked(true)
+    } else {
+      setCurrentAppointmentId(result.appointmentId!)
+      setStep(5)
+    }
   }
 
   const serviceDetail = services.find(s => s.id === selectedService)
@@ -331,54 +336,125 @@ export function BookingCalendar({ dict, squareAppId, squareLocationId }: { dict:
         {/* Step 4: Confirm */}
         {step === 4 && (
           <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <h2 className="text-2xl font-bold mb-6 text-white text-center">{dict.bookingConfirmTitle}</h2>
-            <div className="bg-black/50 border border-white/10 p-6 rounded-xl space-y-4 mb-6">
-              <div className="flex justify-between items-start border-b border-white/10 pb-4 gap-4">
-                <span className="text-gray-400 flex-shrink-0">{dict.service}</span>
-                <div className="text-right">
-                  <p className="font-bold text-white">{serviceDetail?.name || '—'}</p>
-                  {serviceDetail && (
-                    <p className="text-gray-500 text-sm mt-0.5">
-                      {formatDuration(serviceDetail.duration_minutes)} · ${Number(serviceDetail.price).toFixed(2)}
-                    </p>
-                  )}
+            {cashBooked ? (
+              /* Cash payment success state */
+              <div className="flex flex-col items-center gap-5 py-8 text-center">
+                <div className="w-20 h-20 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-10 h-10 text-yellow-500" />
                 </div>
-              </div>
-              <div className="flex justify-between items-center border-b border-white/10 pb-4 gap-4">
-                <span className="text-gray-400">{dict.barber}</span>
-                <div className="flex items-center gap-2">
-                  {barberDetail && <BarberAvatar barber={barberDetail} />}
-                  <span className="font-bold text-white">{barberDetail?.name || '—'}</span>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">{dict.bookingCashConfirmed}</h3>
+                  <p className="text-gray-400 text-sm max-w-xs">{dict.bookingCashMsg}</p>
                 </div>
-              </div>
-              <div className="flex justify-between items-center gap-4">
-                <span className="text-gray-400">{dict.bookingStepDateTime}</span>
-                <span className="font-bold text-yellow-500 text-right">
-                  {date ? format(date, 'PPP') : '—'} at {time || '—'}
-                </span>
-              </div>
-            </div>
-
-            {isLoggedIn === false ? (
-              <div className="text-center space-y-4">
-                <p className="text-gray-400 text-sm">{dict.bookingSignInRequired}</p>
-                <a href="/?auth=login"
-                  className="inline-flex items-center gap-2 bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition-colors">
-                  <LogIn className="w-4 h-4" /> {dict.bookingSignInBtn}
-                </a>
+                <div className="bg-black/40 border border-white/10 rounded-xl px-5 py-3 text-sm text-gray-400 space-y-1 w-full max-w-xs text-left">
+                  <div className="flex justify-between">
+                    <span>{dict.service}</span>
+                    <span className="text-white font-semibold">{serviceDetail?.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{dict.barber}</span>
+                    <span className="text-white font-semibold">{barberDetail?.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{dict.bookingStepDateTime}</span>
+                    <span className="text-yellow-500 font-semibold">{date ? format(date, 'PP') : '—'} · {time}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition-colors"
+                >
+                  {dict.navDashboard}
+                </button>
               </div>
             ) : (
+              /* Normal confirm form */
               <>
-                {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
-                <button
-                  onClick={handleConfirm}
-                  disabled={loading}
-                  className="w-full bg-yellow-500 text-black font-bold text-lg py-4 rounded-xl hover:bg-yellow-400 transition-colors shadow-[0_0_20px_rgba(234,179,8,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading
-                    ? <><Loader2 className="w-5 h-5 animate-spin" /> {dict.bookingBooking}</>
-                    : dict.bookingConfirmBtn}
-                </button>
+                <h2 className="text-2xl font-bold mb-6 text-white text-center">{dict.bookingConfirmTitle}</h2>
+                <div className="bg-black/50 border border-white/10 p-6 rounded-xl space-y-4 mb-6">
+                  <div className="flex justify-between items-start border-b border-white/10 pb-4 gap-4">
+                    <span className="text-gray-400 flex-shrink-0">{dict.service}</span>
+                    <div className="text-right">
+                      <p className="font-bold text-white">{serviceDetail?.name || '—'}</p>
+                      {serviceDetail && (
+                        <p className="text-gray-500 text-sm mt-0.5">
+                          {formatDuration(serviceDetail.duration_minutes)} · ${Number(serviceDetail.price).toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-white/10 pb-4 gap-4">
+                    <span className="text-gray-400">{dict.barber}</span>
+                    <div className="flex items-center gap-2">
+                      {barberDetail && <BarberAvatar barber={barberDetail} />}
+                      <span className="font-bold text-white">{barberDetail?.name || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center gap-4">
+                    <span className="text-gray-400">{dict.bookingStepDateTime}</span>
+                    <span className="font-bold text-yellow-500 text-right">
+                      {date ? format(date, 'PPP') : '—'} at {time || '—'}
+                    </span>
+                  </div>
+                </div>
+
+                {isLoggedIn === false ? (
+                  <div className="text-center space-y-4">
+                    <p className="text-gray-400 text-sm">{dict.bookingSignInRequired}</p>
+                    <a href="/?auth=login"
+                      className="inline-flex items-center gap-2 bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition-colors">
+                      <LogIn className="w-4 h-4" /> {dict.bookingSignInBtn}
+                    </a>
+                  </div>
+                ) : (
+                  <>
+                    {/* Payment method selector */}
+                    <div className="mb-5 space-y-2">
+                      <p className="text-sm font-semibold text-gray-400">{dict.bookingPayMethod}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('card')}
+                          className={clsx(
+                            'p-4 rounded-xl border text-left transition-all',
+                            paymentMethod === 'card'
+                              ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_12px_rgba(234,179,8,0.2)]'
+                              : 'border-white/10 hover:border-white/30 bg-black/30'
+                          )}
+                        >
+                          <CreditCard className="w-5 h-5 text-yellow-500 mb-2" />
+                          <p className="font-bold text-white text-sm">{dict.bookingPayNow}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">{dict.bookingPayNowDesc}</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('cash')}
+                          className={clsx(
+                            'p-4 rounded-xl border text-left transition-all',
+                            paymentMethod === 'cash'
+                              ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_12px_rgba(234,179,8,0.2)]'
+                              : 'border-white/10 hover:border-white/30 bg-black/30'
+                          )}
+                        >
+                          <Banknote className="w-5 h-5 text-green-400 mb-2" />
+                          <p className="font-bold text-white text-sm">{dict.bookingPayCash}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">{dict.bookingPayCashDesc}</p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
+                    <button
+                      onClick={handleConfirm}
+                      disabled={loading}
+                      className="w-full bg-yellow-500 text-black font-bold text-lg py-4 rounded-xl hover:bg-yellow-400 transition-colors shadow-[0_0_20px_rgba(234,179,8,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loading
+                        ? <><Loader2 className="w-5 h-5 animate-spin" /> {dict.bookingBooking}</>
+                        : dict.bookingConfirmBtn}
+                    </button>
+                  </>
+                )}
               </>
             )}
           </motion.div>
@@ -406,8 +482,8 @@ export function BookingCalendar({ dict, squareAppId, squareLocationId }: { dict:
         )}
       </AnimatePresence>
 
-      {/* Navigation — hidden on payment step (PaymentForm handles its own submission) */}
-      {step !== 5 && (
+      {/* Navigation — hidden on payment step and after cash booking success */}
+      {step !== 5 && !cashBooked && (
         <div className="flex justify-between mt-8">
           <button
             onClick={handleBack}

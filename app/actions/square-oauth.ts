@@ -9,7 +9,7 @@ import crypto from 'crypto'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 const CLIENT_ID = process.env.SQUARE_CLIENT_ID ?? ''
 const REDIRECT_URI = `${SITE_URL}/api/square/oauth/callback`
-const SCOPES = 'PAYMENTS_WRITE PAYMENTS_READ MERCHANT_PROFILE_READ ITEMS_READ'
+const SCOPES = 'PAYMENTS_WRITE PAYMENTS_READ MERCHANT_PROFILE_READ ITEMS_READ ITEMS_WRITE APPOINTMENTS_WRITE APPOINTMENTS_READ TEAM_MEMBERS_READ'
 
 export type SquareConnectionStatus = {
   connected: boolean

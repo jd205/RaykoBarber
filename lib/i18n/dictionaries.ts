@@ -130,6 +130,13 @@ export const dictionaries = {
     bookingConflictBtn: "Choose Another Time",
     bookingSlotsChecking: "Checking availability…",
     bookingStepPayment: "Payment",
+    bookingPayMethod: "How would you like to pay?",
+    bookingPayNow: "Pay Now",
+    bookingPayNowDesc: "Card, Apple Pay & Google Pay",
+    bookingPayCash: "Pay in Person",
+    bookingPayCashDesc: "Pay at the barbershop",
+    bookingCashConfirmed: "Appointment Confirmed!",
+    bookingCashMsg: "Show up at your appointment time. Payment is due at the barbershop.",
 
     // ── Payment ──────────────────────────────────────────────
     paymentCardLabel: "Credit or Debit Card",
@@ -293,6 +300,13 @@ export const dictionaries = {
     bookingConflictBtn: "Elegir Otra Hora",
     bookingSlotsChecking: "Verificando disponibilidad…",
     bookingStepPayment: "Pago",
+    bookingPayMethod: "¿Cómo deseas pagar?",
+    bookingPayNow: "Pagar Ahora",
+    bookingPayNowDesc: "Tarjeta, Apple Pay y Google Pay",
+    bookingPayCash: "Pagar en Local",
+    bookingPayCashDesc: "Paga en la barbería",
+    bookingCashConfirmed: "¡Cita Confirmada!",
+    bookingCashMsg: "Preséntate a tu cita. El pago se realiza en la barbería.",
 
     // ── Payment ──────────────────────────────────────────────
     paymentCardLabel: "Tarjeta de Crédito o Débito",
