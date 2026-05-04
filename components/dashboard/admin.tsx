@@ -12,9 +12,10 @@ import { BarbersManager } from '@/components/admin/barbers-manager'
 import { ClientHistory } from '@/components/admin/client-history'
 import type { AdminAppointment, CatalogMaps } from '@/app/dashboard/page'
 import { GalleryManager } from '@/components/admin/gallery-manager'
-import { Calendar, List, Users, Settings, Scissors, UserCheck, Images, ScrollText } from 'lucide-react'
+import { SquareConnect } from '@/components/admin/square-connect'
+import { Calendar, List, Users, Settings, Scissors, UserCheck, Images, ScrollText, CreditCard } from 'lucide-react'
 
-type Tab = 'calendar' | 'appointments' | 'users' | 'services' | 'barbers' | 'gallery' | 'settings' | 'history'
+type Tab = 'calendar' | 'appointments' | 'users' | 'services' | 'barbers' | 'gallery' | 'settings' | 'history' | 'payments'
 
 const TABS: { id: Tab; labelKey: keyof typeof dictionaries.en; icon: React.ElementType }[] = [
   { id: 'calendar',     labelKey: 'tabCalendar',     icon: Calendar    },
@@ -24,6 +25,7 @@ const TABS: { id: Tab; labelKey: keyof typeof dictionaries.en; icon: React.Eleme
   { id: 'services',     labelKey: 'tabServices',     icon: Scissors    },
   { id: 'barbers',      labelKey: 'tabBarbers',      icon: UserCheck   },
   { id: 'gallery',      labelKey: 'tabGallery',      icon: Images      },
+  { id: 'payments',     labelKey: 'tabPayments',     icon: CreditCard  },
   { id: 'settings',     labelKey: 'tabSettings',     icon: Settings    },
 ]
 
@@ -75,6 +77,7 @@ export function AdminDashboard({
       {activeTab === 'services'     && <ServicesManager />}
       {activeTab === 'barbers'      && <BarbersManager />}
       {activeTab === 'gallery'      && <GalleryManager />}
+      {activeTab === 'payments'     && <SquareConnect />}
       {activeTab === 'settings'     && <BarbershopSettings />}
     </div>
   )

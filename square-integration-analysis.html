@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Square Payments — Análisis de Factibilidad · SAASbarberiaSquare</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1c1c1c;
+      --border: #2a2a2a;
+      --amber: #fbbf24;
+      --amber-dim: #92680d;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --orange: #f97316;
+      --text: #e5e5e5;
+      --muted: #737373;
+      --code-bg: #0d1117;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #111 0%, #1a1200 100%);
+      border-bottom: 1px solid var(--amber-dim);
+      padding: 40px 24px 32px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-block;
+      background: var(--amber-dim);
+      color: var(--amber);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+      border: 1px solid var(--amber);
+    }
+    header h1 {
+      font-size: clamp(22px, 4vw, 36px);
+      font-weight: 800;
+      color: var(--amber);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────────── */
+    .container { max-width: 1040px; margin: 0 auto; padding: 40px 24px 80px; }
+    .section { margin-bottom: 48px; }
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--amber);
+      border-left: 3px solid var(--amber);
+      padding-left: 12px;
+      margin-bottom: 20px;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #d4d4d4;
+      margin-bottom: 10px;
+      margin-top: 18px;
+    }
+    p { color: #a3a3a3; margin-bottom: 12px; }
+
+    /* ── VERDICT BANNER ─────────────────────────────────────── */
+    .verdict {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: linear-gradient(135deg, #0c1a00 0%, #0a1200 100%);
+      border: 1px solid var(--green);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 40px;
+    }
+    .verdict-icon {
+      font-size: 48px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .verdict-content h2 {
+      border: none;
+      padding: 0;
+      font-size: 22px;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+    .verdict-content p { color: #86efac; margin: 0; font-size: 14px; }
+
+    /* ── PROS / CONS GRID ───────────────────────────────────── */
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 640px) { .pros-cons { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card.pros { border-top: 3px solid var(--green); }
+    .card.cons { border-top: 3px solid var(--red); }
+    .card.warn { border-top: 3px solid var(--orange); }
+    .card.info { border-top: 3px solid var(--blue); }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .card.pros .card-title { color: var(--green); }
+    .card.cons .card-title { color: var(--red); }
+    .card.warn .card-title { color: var(--orange); }
+    .card.info .card-title { color: var(--blue); }
+
+    /* ── LIST ITEMS ─────────────────────────────────────────── */
+    ul.checklist { list-style: none; }
+    ul.checklist li {
+      display: flex;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      color: #c4c4c4;
+    }
+    ul.checklist li:last-child { border-bottom: none; }
+    ul.checklist li .icon { flex-shrink: 0; font-size: 15px; }
+    ul.checklist li strong { color: #e5e5e5; display: block; font-size: 13.5px; }
+    ul.checklist li span { color: var(--muted); font-size: 12.5px; }
+
+    /* ── STEP TIMELINE ─────────────────────────────────────── */
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--amber), transparent);
+    }
+    .step {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .step::before {
+      content: attr(data-step);
+      position: absolute;
+      left: -28px;
+      top: 1px;
+      width: 20px;
+      height: 20px;
+      background: var(--amber);
+      color: #000;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #e5e5e5;
+      margin-bottom: 4px;
+    }
+    .step-desc { font-size: 13px; color: var(--muted); }
+    .step-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-left: 6px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+    .tag-dev { background: #1d3557; color: #60a5fa; }
+    .tag-config { background: #1a1200; color: var(--amber); }
+    .tag-db { background: #14291a; color: var(--green); }
+    .tag-crit { background: #2d0e0e; color: var(--red); }
+
+    /* ── CODE BLOCK ─────────────────────────────────────────── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.6;
+      margin: 12px 0;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    .kw { color: #ff7b72; }
+    .fn { color: #d2a8ff; }
+    .str { color: #a5d6ff; }
+    .cm { color: #8b949e; font-style: italic; }
+    .nu { color: #79c0ff; }
+    .prop { color: #ffa657; }
+
+    /* ── PAYMENT METHODS GRID ───────────────────────────────── */
+    .methods-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .method-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 12px;
+      text-align: center;
+    }
+    .method-card .m-icon { font-size: 26px; margin-bottom: 6px; }
+    .method-card .m-name { font-size: 13px; font-weight: 600; color: #d4d4d4; }
+    .method-card .m-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .method-card.mobile { border-color: var(--green); }
+    .method-card.mobile .m-name { color: var(--green); }
+
+    /* ── WARNING BOX ────────────────────────────────────────── */
+    .alert {
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13.5px;
+      margin: 14px 0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .alert.warn { background: #1e1200; border: 1px solid #92400e; color: #fcd34d; }
+    .alert.danger { background: #1a0505; border: 1px solid #7f1d1d; color: #fca5a5; }
+    .alert.success { background: #061412; border: 1px solid #14532d; color: #86efac; }
+    .alert.info-box { background: #050e1a; border: 1px solid #1e3a5f; color: #93c5fd; }
+    .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── ENV TABLE ──────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: #c4c4c4;
+      vertical-align: top;
+    }
+    td code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--amber);
+    }
+    tr:hover td { background: var(--surface2); }
+    .badge-pub { background: #0c1a2e; color: #60a5fa; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-sec { background: #1a0c0c; color: #f87171; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+
+    /* ── EFFORT METER ───────────────────────────────────────── */
+    .effort-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 500px) { .effort-grid { grid-template-columns: 1fr; } }
+    .effort-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .effort-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .effort-value { font-size: 18px; font-weight: 800; }
+    .effort-item.low .effort-value { color: var(--green); }
+    .effort-item.med .effort-value { color: var(--amber); }
+    .effort-item.high .effort-value { color: var(--orange); }
+    .effort-item.crit .effort-value { color: var(--red); }
+
+    /* ── FOOTER ─────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ── DIVIDER ────────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 36px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Análisis Técnico · 2026-05-03</div>
+  <h1>Square Payments API — Factibilidad</h1>
+  <p>Evaluación completa para integrar Square en <strong>SAASbarberiaSquare</strong> con soporte de pagos desde dispositivos móviles</p>
+</header>
+
+<div class="container">
+
+  <!-- VEREDICTO -->
+  <div class="verdict">
+    <div class="verdict-icon">✅</div>
+    <div class="verdict-content">
+      <h2>Factible — Arquitectura Compatible</h2>
+      <p>
+        El stack actual (Next.js 16 App Router · Server Actions · Supabase · TypeScript) es totalmente compatible
+        con la Square Web Payments SDK y la Payments API. No se requiere refactorización arquitectural.
+        La única fricción técnica real está en el CSP existente y la verificación de dominio para Apple Pay.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── 1. MÉTODOS DE PAGO DISPONIBLES ──────────────────────── -->
+  <div class="section">
+    <h2>1. Métodos de Pago Soportados</h2>
+    <p>Square Web Payments SDK soporta todos los siguientes métodos — los marcados en verde funcionan directamente desde móvil:</p>
+
+    <div class="methods-grid">
+      <div class="method-card mobile">
+        <div class="m-icon">🍎</div>
+        <div class="m-name">Apple Pay</div>
+        <div class="m-sub">Safari iOS/macOS</div>
+      </div>
+      <div class="method-card mobile">
+        <div class="m-icon">G</div>
+        <div class="m-name">Google Pay</div>
+        <div class="m-sub">Chrome Android/iOS</div>
+      </div>
+      <div class="method-card mobile">
+        <div class="m-icon">💚</div>
+        <div class="m-name">Cash App Pay</div>
+        <div class="m-sub">App móvil (EE.UU.)</div>
+      </div>
+      <div class="method-card">
+        <div class="m-icon">💳</div>
+        <div class="m-name">Tarjeta</div>
+        <div class="m-sub">Crédito / Débito</div>
+      </div>
+      <div class="method-card">
+        <div class="m-icon">🏦</div>
+        <div class="m-name">ACH Transfer</div>
+        <div class="m-sub">Cuenta bancaria</div>
+      </div>
+      <div class="method-card">
+        <div class="m-icon">🎁</div>
+        <div class="m-name">Gift Card</div>
+        <div class="m-sub">Square Gift Cards</div>
+      </div>
+      <div class="method-card">
+        <div class="m-icon">🅰️</div>
+        <div class="m-name">Afterpay</div>
+        <div class="m-sub">Paga en cuotas</div>
+      </div>
+    </div>
+
+    <div class="alert success" style="margin-top: 16px;">
+      <span class="alert-icon">📱</span>
+      <span>
+        <strong>Apple Pay y Google Pay</strong> funcionan nativamente desde el navegador móvil sin instalar ninguna app adicional.
+        El botón de pago aparece solo cuando el dispositivo lo soporta — Square lo detecta automáticamente.
+      </span>
+    </div>
+  </div>
+
+  <!-- ── 2. PROS ───────────────────────────────────────────── -->
+  <div class="section">
+    <h2>2. Ventajas para Este Proyecto</h2>
+
+    <div class="pros-cons">
+      <div class="card pros">
+        <div class="card-title">Ventajas Técnicas</div>
+        <ul class="checklist">
+          <li>
+            <span class="icon">✅</span>
+            <div>
+              <strong>Server Actions = backend ideal</strong>
+              <span>Square requiere llamar <code>CreatePayment</code> desde el servidor. Los server actions de Next.js son exactamente eso.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">✅</span>
+            <div>
+              <strong>TypeScript + Zod ya configurados</strong>
+              <span>Square Node.js SDK tiene tipos nativos. Zod puede validar los payloads de webhook.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">✅</span>
+            <div>
+              <strong>La tabla <code>services</code> ya tiene <code>price</code></strong>
+              <span>El campo <code>numeric(10,2)</code> es directamente usable para calcular el monto a cobrar.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">✅</span>
+            <div>
+              <strong>RLS de Supabase protege pagos</strong>
+              <span>Los clientes solo ven sus propios pagos; el admin ve todos. Sin lógica extra.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">✅</span>
+            <div>
+              <strong>Sin rutas <code>/api/</code> — sin conflictos</strong>
+              <span>El proyecto usa Server Actions puro, lo que simplifica el flujo de pago.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">✅</span>
+            <div>
+              <strong>Sandbox gratuito para testing</strong>
+              <span>Square provee credenciales sandbox, tarjetas de prueba y el entorno <code>squareupsandbox.com</code>.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">✅</span>
+            <div>
+              <strong>Framer Motion disponible para UX de pago</strong>
+              <span>Animaciones de éxito/error/loading sin dependencias adicionales.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card cons">
+        <div class="card-title">Desafíos y Contras</div>
+        <ul class="checklist">
+          <li>
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>CSP requiere modificación urgente</strong>
+              <span>El CSP actual en <code>proxy.ts</code> no incluye los dominios de Square. Bloquearía el SDK por completo.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>Apple Pay exige HTTPS en producción</strong>
+              <span>No funciona en <code>localhost</code>. Requiere dominio real con SSL para activarse.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>Archivo de verificación Apple Pay</strong>
+              <span>Hay que colocar un archivo en <code>public/.well-known/apple-developer-merchantid-domain-association</code> sin extensión.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>Square solo opera en mercados seleccionados</strong>
+              <span>EE.UU., Canadá, UK, Australia, Japón, Irlanda, Francia, España. Verificar disponibilidad en tu país.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>Cash App Pay solo en EE.UU.</strong>
+              <span>Si el mercado objetivo es otro país, este método no aplica.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>Nueva tabla de pagos en Supabase</strong>
+              <span>Hay que crear la tabla <code>payments</code>, sus políticas RLS y la migración correspondiente.</span>
+            </div>
+          </li>
+          <li>
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>Comisión por transacción</strong>
+              <span>Square cobra 2.9% + $0.30 por pago online con tarjeta (varía por país y método).</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. EL PROBLEMA DEL CSP ───────────────────────────── -->
+  <div class="section">
+    <h2>3. Conflicto Crítico: Content Security Policy</h2>
+
+    <p>Tu <code>proxy.ts</code> implementa un CSP estricto con nonce. Square necesita dominios adicionales. Este es el cambio exacto que debes hacer:</p>
+
+    <h3>CSP Actual en <code>proxy.ts</code> (BLOQUEARÁ Square)</h3>
+    <pre><span class="kw">function</span> <span class="fn">buildCsp</span>(nonce: <span class="prop">string</span>): <span class="prop">string</span> {
+  <span class="kw">const</span> isDev = process.env.<span class="prop">NODE_ENV</span> === <span class="str">'development'</span>
+  <span class="kw">return</span> [
+    <span class="str">"default-src 'self'"</span>,
+    isDev
+      ? <span class="str">`script-src 'self' 'nonce-<span class="prop">${nonce}</span>' 'strict-dynamic' 'unsafe-eval'`</span>
+      : <span class="str">`script-src 'self' 'nonce-<span class="prop">${nonce}</span>' 'strict-dynamic'`</span>,
+    <span class="str">"style-src 'self' 'unsafe-inline'"</span>,            <span class="cm">// ✅ OK para Square</span>
+    <span class="str">`connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST}`</span>, <span class="cm">// ❌ falta Square</span>
+    <span class="str">"frame-src https://www.google.com https://maps.google.com"</span>,  <span class="cm">// ❌ falta Square</span>
+    ...
+  ]
+}</pre>
+
+    <h3>CSP Actualizado (compatible con Square)</h3>
+    <pre><span class="kw">function</span> <span class="fn">buildCsp</span>(nonce: <span class="prop">string</span>): <span class="prop">string</span> {
+  <span class="kw">const</span> isDev = process.env.<span class="prop">NODE_ENV</span> === <span class="str">'development'</span>
+  <span class="kw">const</span> squareCdn = isDev
+    ? <span class="str">'https://sandbox.web.squarecdn.com'</span>
+    : <span class="str">'https://web.squarecdn.com'</span>
+  <span class="kw">const</span> squarePci = isDev
+    ? <span class="str">'https://pci-connect.squareupsandbox.com'</span>
+    : <span class="str">'https://pci-connect.squareup.com'</span>
+
+  <span class="kw">return</span> [
+    <span class="str">"default-src 'self'"</span>,
+    isDev
+      ? <span class="str">`script-src 'self' 'nonce-<span class="prop">${nonce}</span>' 'strict-dynamic' 'unsafe-eval' <span class="prop">${squareCdn}</span>`</span>
+      : <span class="str">`script-src 'self' 'nonce-<span class="prop">${nonce}</span>' 'strict-dynamic' <span class="prop">${squareCdn}</span>`</span>,
+    <span class="str">"style-src 'self' 'unsafe-inline'"</span>,
+    <span class="str">`img-src 'self' data: blob: https://images.unsplash.com https://${SUPABASE_HOST} https://api.dicebear.com`</span>,
+    <span class="str">`font-src 'self' data: https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net`</span>,
+    <span class="str">`connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST} <span class="prop">${squareCdn}</span> <span class="prop">${squarePci}</span> https://o160250.ingest.sentry.io`</span>,
+    <span class="str">`frame-src https://www.google.com https://maps.google.com <span class="prop">${squareCdn}</span>`</span>,
+    <span class="str">"frame-ancestors 'self'"</span>,
+    <span class="str">"object-src 'none'"</span>,
+    <span class="str">"base-uri 'self'"</span>,
+  ].join(<span class="str">'; '</span>)
+}</pre>
+
+    <div class="alert warn">
+      <span class="alert-icon">⚠️</span>
+      <span>
+        <strong>Nota sobre <code>strict-dynamic</code>:</strong> Con <code>'strict-dynamic'</code>, los scripts cargados con nonce pueden cargar sub-scripts dinámicamente.
+        Sin embargo, Square carga iframes para el formulario de tarjeta — por eso <code>frame-src</code> debe incluir el CDN de Square explícitamente.
+      </span>
+    </div>
+  </div>
+
+  <!-- ── 4. PASOS DE IMPLEMENTACIÓN ─────────────────────── -->
+  <div class="section">
+    <h2>4. Pasos de Implementación Completos</h2>
+
+    <div class="timeline">
+      <div class="step" data-step="1">
+        <div class="step-title">Crear cuenta en Square Developer <span class="step-tag tag-config">Configuración</span></div>
+        <div class="step-desc">
+          Ir a <strong>developer.squareup.com</strong> → crear aplicación → obtener
+          <code>Application ID</code>, <code>Location ID</code> y <code>Access Token</code> del Sandbox.
+          En producción se usan las credenciales del panel real.
+        </div>
+      </div>
+
+      <div class="step" data-step="2">
+        <div class="step-title">Agregar variables de entorno <span class="step-tag tag-config">Configuración</span></div>
+        <div class="step-desc">
+          Añadir a <code>.env.local</code> las 4 variables de Square detalladas en la sección 5 de este documento.
+          Las variables <code>NEXT_PUBLIC_</code> son seguras para el cliente; las demás solo van al servidor.
+        </div>
+      </div>
+
+      <div class="step" data-step="3">
+        <div class="step-title">Instalar Square Node.js SDK <span class="step-tag tag-dev">Dev</span></div>
+        <div class="step-desc">
+          <code>npm install square</code> — el SDK oficial de Square para Node.js incluye tipos TypeScript nativos
+          y el cliente para llamar a <code>CreatePayment</code>, <code>RefundPayment</code>, etc.
+        </div>
+      </div>
+
+      <div class="step" data-step="4">
+        <div class="step-title">Actualizar CSP en <code>proxy.ts</code> <span class="step-tag tag-crit">Crítico</span></div>
+        <div class="step-desc">
+          Agregar los dominios de Square a <code>script-src</code>, <code>frame-src</code>, <code>connect-src</code>
+          y <code>font-src</code>. Sin este paso, el SDK queda bloqueado por el navegador.
+        </div>
+      </div>
+
+      <div class="step" data-step="5">
+        <div class="step-title">Crear tabla <code>payments</code> en Supabase <span class="step-tag tag-db">Base de datos</span></div>
+        <div class="step-desc">
+          Nueva migración con la tabla <code>payments</code> (ver schema en sección 6), políticas RLS
+          y foreign key a <code>appointments</code>. Agregar campo <code>payment_status</code> en <code>appointments</code>.
+        </div>
+      </div>
+
+      <div class="step" data-step="6">
+        <div class="step-title">Crear <code>app/actions/payments.ts</code> <span class="step-tag tag-dev">Dev</span></div>
+        <div class="step-desc">
+          Server action que recibe el token generado por el SDK del cliente,
+          llama a <code>square.paymentsApi.createPayment()</code> y guarda el resultado en Supabase.
+          Todo corre en el servidor — el Access Token nunca llega al cliente.
+        </div>
+      </div>
+
+      <div class="step" data-step="7">
+        <div class="step-title">Crear componente <code>PaymentForm</code> <span class="step-tag tag-dev">Dev</span></div>
+        <div class="step-desc">
+          Componente <code>"use client"</code> que carga el Web Payments SDK vía CDN,
+          inicializa la card, Apple Pay y Google Pay, y llama al server action con el token.
+          Se integra como un paso adicional en el <code>BookingWizard</code> existente.
+        </div>
+      </div>
+
+      <div class="step" data-step="8">
+        <div class="step-title">Archivo de verificación Apple Pay <span class="step-tag tag-crit">Crítico para Apple Pay</span></div>
+        <div class="step-desc">
+          Colocar el archivo descargado desde el Developer Console en
+          <code>public/.well-known/apple-developer-merchantid-domain-association</code>
+          <strong>sin extensión de archivo</strong>. Requiere dominio con HTTPS real (no localhost).
+        </div>
+      </div>
+
+      <div class="step" data-step="9">
+        <div class="step-title">Configurar Webhooks para actualizaciones de pago <span class="step-tag tag-dev">Dev</span></div>
+        <div class="step-desc">
+          Crear una ruta API (<code>app/api/square-webhook/route.ts</code>) que reciba
+          eventos de Square (<code>payment.completed</code>, <code>payment.failed</code>)
+          y actualice el estado en Supabase. Verificar la firma HMAC con <code>SQUARE_WEBHOOK_SIGNATURE_KEY</code>.
+        </div>
+      </div>
+
+      <div class="step" data-step="10">
+        <div class="step-title">Testing en Sandbox → Deploy a producción <span class="step-tag tag-config">QA</span></div>
+        <div class="step-desc">
+          Usar las tarjetas de prueba de Square (<code>4111 1111 1111 1111</code>).
+          En producción, cambiar las env vars al dominio <code>web.squarecdn.com</code>
+          y las credenciales reales de Square. Registrar el dominio en el Developer Console.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 5. VARIABLES DE ENTORNO ─────────────────────── -->
+  <div class="section">
+    <h2>5. Variables de Entorno Necesarias</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Scope</th>
+          <th>Descripción</th>
+          <th>Dónde obtener</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>NEXT_PUBLIC_SQUARE_APP_ID</code></td>
+          <td><span class="badge-pub">Público</span></td>
+          <td>Application ID del proyecto Square. Seguro en el cliente — inicializa el Web Payments SDK.</td>
+          <td>Developer Console → tu aplicación → Credentials</td>
+        </tr>
+        <tr>
+          <td><code>NEXT_PUBLIC_SQUARE_LOCATION_ID</code></td>
+          <td><span class="badge-pub">Público</span></td>
+          <td>ID de la ubicación (barbería). Requerido para inicializar pagos y Apple Pay.</td>
+          <td>Developer Console → tu aplicación → Locations</td>
+        </tr>
+        <tr>
+          <td><code>SQUARE_ACCESS_TOKEN</code></td>
+          <td><span class="badge-sec">Secreto</span></td>
+          <td>Token del servidor para llamar a la Payments API. <strong>Nunca exponerlo al cliente.</strong></td>
+          <td>Developer Console → tu aplicación → Credentials → Access Token</td>
+        </tr>
+        <tr>
+          <td><code>SQUARE_WEBHOOK_SIGNATURE_KEY</code></td>
+          <td><span class="badge-sec">Secreto</span></td>
+          <td>Clave HMAC para verificar que los webhooks vienen realmente de Square.</td>
+          <td>Developer Console → Webhooks → tu endpoint → Signature Key</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="alert info-box" style="margin-top: 14px;">
+      <span class="alert-icon">ℹ️</span>
+      <span>
+        En Sandbox, los valores de <code>NEXT_PUBLIC_SQUARE_APP_ID</code> empiezan con <code>sandbox-sq0idb-</code>.
+        En producción empiezan con <code>sq0idp-</code>. Hay que cambiar ambas variables al pasar a producción.
+      </span>
+    </div>
+  </div>
+
+  <!-- ── 6. SCHEMA DE BASE DE DATOS ─────────────────── -->
+  <div class="section">
+    <h2>6. Schema de Base de Datos a Agregar</h2>
+
+    <pre><span class="cm">-- Nueva tabla de pagos</span>
+<span class="kw">CREATE TABLE</span> public.payments (
+  id                  uuid <span class="kw">DEFAULT</span> gen_random_uuid() <span class="kw">PRIMARY KEY</span>,
+  appointment_id      uuid <span class="kw">REFERENCES</span> public.appointments(id) <span class="kw">ON DELETE CASCADE NOT NULL</span>,
+  user_id             uuid <span class="kw">REFERENCES</span> public.profiles(id) <span class="kw">ON DELETE CASCADE NOT NULL</span>,
+  square_payment_id   text <span class="kw">UNIQUE NOT NULL</span>,               <span class="cm">-- ID devuelto por Square</span>
+  amount_cents        integer <span class="kw">NOT NULL</span>,                  <span class="cm">-- Square trabaja en centavos</span>
+  currency            text <span class="kw">DEFAULT</span> <span class="str">'USD'</span> <span class="kw">NOT NULL</span>,
+  status              text <span class="kw">DEFAULT</span> <span class="str">'pending'</span>
+                        <span class="kw">CHECK</span> (status <span class="kw">IN</span> (<span class="str">'pending'</span>, <span class="str">'completed'</span>, <span class="str">'failed'</span>, <span class="str">'refunded'</span>)),
+  payment_method      text,                                   <span class="cm">-- 'card', 'apple_pay', 'google_pay'</span>
+  card_last4          text,                                   <span class="cm">-- últimos 4 dígitos (solo referencia)</span>
+  created_at          timestamp with time zone <span class="kw">DEFAULT</span> now() <span class="kw">NOT NULL</span>,
+  updated_at          timestamp with time zone <span class="kw">DEFAULT</span> now() <span class="kw">NOT NULL</span>
+);
+
+<span class="cm">-- Agregar payment_status a appointments</span>
+<span class="kw">ALTER TABLE</span> public.appointments
+  <span class="kw">ADD COLUMN</span> payment_status text <span class="kw">DEFAULT</span> <span class="str">'unpaid'</span>
+    <span class="kw">CHECK</span> (payment_status <span class="kw">IN</span> (<span class="str">'unpaid'</span>, <span class="str">'paid'</span>, <span class="str">'refunded'</span>));
+
+<span class="cm">-- RLS: clientes solo ven sus pagos, admin ve todos</span>
+<span class="kw">ALTER TABLE</span> public.payments <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="kw">CREATE POLICY</span> payments_select <span class="kw">ON</span> public.payments
+  <span class="kw">FOR SELECT USING</span> (auth.uid() = user_id <span class="kw">OR</span> is_admin());
+
+<span class="kw">CREATE POLICY</span> payments_insert <span class="kw">ON</span> public.payments
+  <span class="kw">FOR INSERT WITH CHECK</span> (auth.uid() = user_id);</pre>
+  </div>
+
+  <!-- ── 7. FLUJO DE PAGO ────────────────────────────── -->
+  <div class="section">
+    <h2>7. Flujo de Pago Completo (Móvil)</h2>
+
+    <pre><span class="cm">// ① Cliente toca "Pagar con Apple Pay / Google Pay" en el móvil</span>
+
+<span class="cm">// ② Web Payments SDK muestra el sheet nativo del dispositivo</span>
+<span class="kw">const</span> tokenResult = <span class="kw">await</span> applePay.<span class="fn">tokenize</span>()
+<span class="cm">//    token: "cnon:CBASENab2qIGo4..."  (válido por 24 horas)</span>
+
+<span class="cm">// ③ Server action recibe el token (servidor, nunca el cliente maneja el token)</span>
+<span class="str">'use server'</span>
+<span class="kw">async function</span> <span class="fn">processPayment</span>(token: <span class="prop">string</span>, appointmentId: <span class="prop">string</span>) {
+  <span class="kw">const</span> { result } = <span class="kw">await</span> squareClient.paymentsApi.<span class="fn">createPayment</span>({
+    sourceId: token,
+    idempotencyKey: crypto.<span class="fn">randomUUID</span>(),
+    amountMoney: { amount: <span class="nu">5000n</span>, currency: <span class="str">'USD'</span> },   <span class="cm">// BigInt — Square usa centavos</span>
+    locationId: process.env.<span class="prop">NEXT_PUBLIC_SQUARE_LOCATION_ID</span>!,
+  })
+
+  <span class="cm">// ④ Guardar resultado en Supabase</span>
+  <span class="kw">await</span> supabase.<span class="fn">from</span>(<span class="str">'payments'</span>).<span class="fn">insert</span>({
+    appointment_id: appointmentId,
+    square_payment_id: result.payment!.id,
+    amount_cents: <span class="nu">5000</span>,
+    status: <span class="str">'completed'</span>,
+    payment_method: result.payment!.sourceType,
+  })
+
+  <span class="cm">// ⑤ Actualizar estado del appointment</span>
+  <span class="kw">await</span> supabase.<span class="fn">from</span>(<span class="str">'appointments'</span>)
+    .<span class="fn">update</span>({ payment_status: <span class="str">'paid'</span> })
+    .<span class="fn">eq</span>(<span class="str">'id'</span>, appointmentId)
+}</pre>
+  </div>
+
+  <!-- ── 8. ESFUERZO Y TIEMPO ────────────────────────── -->
+  <div class="section">
+    <h2>8. Estimación de Esfuerzo</h2>
+
+    <div class="effort-grid">
+      <div class="effort-item low">
+        <div class="effort-label">Configuración inicial (env vars, SDK, CSP)</div>
+        <div class="effort-value">~2 horas</div>
+      </div>
+      <div class="effort-item med">
+        <div class="effort-label">Migración BD + Server Action + PaymentForm</div>
+        <div class="effort-value">~1 día</div>
+      </div>
+      <div class="effort-item med">
+        <div class="effort-label">Integración en Booking Wizard + UI/UX</div>
+        <div class="effort-value">~1 día</div>
+      </div>
+      <div class="effort-item high">
+        <div class="effort-label">Apple Pay domain verification + Webhooks</div>
+        <div class="effort-value">~1 día</div>
+      </div>
+      <div class="effort-item high">
+        <div class="effort-label">Testing Sandbox completo + edge cases</div>
+        <div class="effort-value">~1 día</div>
+      </div>
+      <div class="effort-item crit">
+        <div class="effort-label">TOTAL estimado (listo para producción)</div>
+        <div class="effort-value">4-5 días</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 9. RIESGOS ───────────────────────────────────── -->
+  <div class="section">
+    <h2>9. Riesgos a Considerar</h2>
+
+    <div class="alert danger">
+      <span class="alert-icon">🚨</span>
+      <div>
+        <strong>Square no opera en todos los países.</strong>
+        Verificar en <strong>squareup.com/global</strong> si tu país está soportado antes de iniciar.
+        Si la barbería está en Latinoamérica (excepto México), Square no está disponible — evaluar Stripe como alternativa.
+      </div>
+    </div>
+
+    <div class="alert warn">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <strong>Apple Pay no funciona en localhost.</strong>
+        Para probar Apple Pay en desarrollo necesitarás un dominio HTTPS real (puede ser un tunnel con ngrok o un subdominio de prueba).
+        Google Pay sí funciona en localhost con las credenciales sandbox.
+      </div>
+    </div>
+
+    <div class="alert warn">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <strong>Square trabaja con BigInt en Node.js.</strong>
+        Los montos de dinero (<code>amount</code>) son <code>bigint</code> en el SDK de TypeScript.
+        Hay que serializar a <code>number</code> antes de guardar en Supabase o devolver al cliente.
+      </div>
+    </div>
+
+    <div class="alert info-box">
+      <span class="alert-icon">ℹ️</span>
+      <div>
+        <strong>Pago al momento de la reserva vs. pago al llegar.</strong>
+        Debes decidir el modelo de negocio: ¿cobrar 100% al reservar, depósito parcial, o solo al finalizar el corte?
+        Square soporta los tres modos (capture inmediata, autorización diferida, o pago manual desde el admin).
+      </div>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ── 10. RESUMEN EJECUTIVO ──────────────────────── -->
+  <div class="section">
+    <h2>10. Resumen Ejecutivo</h2>
+
+    <div class="card info">
+      <div class="card-title">Conclusión Final</div>
+      <ul class="checklist">
+        <li>
+          <span class="icon">✅</span>
+          <div>
+            <strong>Arquitectura 100% compatible</strong>
+            <span>Next.js 16 + Server Actions + Supabase es el stack ideal para Square. No hay refactorización mayor necesaria.</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">✅</span>
+          <div>
+            <strong>Pagos móviles nativos desde el día 1</strong>
+            <span>Apple Pay (Safari iOS) y Google Pay (Chrome Android) se activan automáticamente con Square Web Payments SDK.</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">⚠️</span>
+          <div>
+            <strong>Punto crítico: verificar disponibilidad de Square en tu país</strong>
+            <span>Este es el único bloqueador real. Si Square no está disponible, Stripe es la alternativa directa con integración similar.</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">🔧</span>
+          <div>
+            <strong>Modificación técnica más urgente: el CSP de <code>proxy.ts</code></strong>
+            <span>Sin actualizar las directivas CSP, el SDK de Square quedaría bloqueado por el navegador antes de siquiera cargar.</span>
+          </div>
+        </li>
+        <li>
+          <span class="icon">📅</span>
+          <div>
+            <strong>Timeline realista: 4-5 días hábiles hasta producción</strong>
+            <span>Desde instalar el SDK hasta tener pagos reales funcionando con webhooks y testing completo.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Generado el 2026-05-03 · SAASbarberiaSquare · Stack: Next.js 16 · Supabase · Square Web Payments SDK
+</footer>
+
+</body>
+</html>

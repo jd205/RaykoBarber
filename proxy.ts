@@ -7,16 +7,25 @@ const SUPABASE_HOST = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === 'development'
+  // Square CDN differs between sandbox and production
+  const squareCdn = isDev
+    ? 'https://sandbox.web.squarecdn.com'
+    : 'https://web.squarecdn.com'
+  const squarePci = isDev
+    ? 'https://pci-connect.squareupsandbox.com'
+    : 'https://pci-connect.squareup.com'
+
   return [
     "default-src 'self'",
+    // squareCdn added as CSP2 host allowlist fallback; strict-dynamic covers modern browsers
     isDev
-      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
-      : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' ${squareCdn}`
+      : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${squareCdn}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: https://images.unsplash.com https://${SUPABASE_HOST} https://api.dicebear.com`,
-    "font-src 'self' data:",
-    `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST}`,
-    "frame-src https://www.google.com https://maps.google.com",
+    `font-src 'self' data: https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net`,
+    `connect-src 'self' https://${SUPABASE_HOST} wss://${SUPABASE_HOST} ${squareCdn} ${squarePci} https://o160250.ingest.sentry.io`,
+    `frame-src https://www.google.com https://maps.google.com ${squareCdn}`,
     "frame-ancestors 'self'",
     "object-src 'none'",
     "base-uri 'self'",

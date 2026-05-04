@@ -40,6 +40,7 @@ export const dictionaries = {
     tabServices: "Services",
     tabBarbers: "Barbers",
     tabGallery: "Gallery",
+    tabPayments: "Payments",
     tabSettings: "Settings",
     tabHistory: "Client History",
     notes: "Notes",
@@ -128,6 +129,15 @@ export const dictionaries = {
     bookingConflictMsg: "This time slot was just taken by another client. Please select a different time.",
     bookingConflictBtn: "Choose Another Time",
     bookingSlotsChecking: "Checking availability…",
+    bookingStepPayment: "Payment",
+
+    // ── Payment ──────────────────────────────────────────────
+    paymentCardLabel: "Credit or Debit Card",
+    paymentPay: "Pay",
+    paymentPaying: "Processing…",
+    paymentOrPayWith: "or pay with card",
+    paymentSdkLoading: "Loading payment form…",
+    paymentSuccess: "Payment successful!",
 
     // ── Upcoming (client dashboard) ──────────────────────────
     upcomingBarber: "Barber:",
@@ -193,6 +203,7 @@ export const dictionaries = {
     tabServices: "Servicios",
     tabBarbers: "Barberos",
     tabGallery: "Galería",
+    tabPayments: "Pagos",
     tabSettings: "Configuración",
     tabHistory: "Historial",
     notes: "Notas",
@@ -281,6 +292,15 @@ export const dictionaries = {
     bookingConflictMsg: "Este horario acaba de ser tomado por otro cliente. Por favor selecciona una hora diferente.",
     bookingConflictBtn: "Elegir Otra Hora",
     bookingSlotsChecking: "Verificando disponibilidad…",
+    bookingStepPayment: "Pago",
+
+    // ── Payment ──────────────────────────────────────────────
+    paymentCardLabel: "Tarjeta de Crédito o Débito",
+    paymentPay: "Pagar",
+    paymentPaying: "Procesando…",
+    paymentOrPayWith: "o pagar con tarjeta",
+    paymentSdkLoading: "Cargando formulario de pago…",
+    paymentSuccess: "¡Pago exitoso!",
 
     // ── Upcoming (client dashboard) ──────────────────────────
     upcomingBarber: "Barbero:",

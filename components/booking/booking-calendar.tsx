@@ -1,16 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, addDays } from 'date-fns'
 import { DayPicker } from 'react-day-picker'
 import 'react-day-picker/dist/style.css'
-import { Calendar as CalendarIcon, Clock, Scissors, User, Loader2, CheckCircle2, LogIn, AlertCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, Clock, Scissors, User, Loader2, LogIn, AlertCircle } from 'lucide-react'
 import clsx from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { bookAppointment, getBarberBookedSlots } from '@/app/actions/appointments'
 import { useRouter } from 'next/navigation'
 import type { Dict } from '@/lib/i18n/dictionaries'
+
+// Loaded client-side only — accesses window.Square
+const PaymentForm = dynamic(
+  () => import('./payment-form').then(m => m.PaymentForm),
+  { ssr: false }
+)
 
 type DbService = {
   id: string
@@ -64,7 +71,7 @@ function BarberAvatar({ barber }: { barber: DbBarber }) {
   )
 }
 
-export function BookingCalendar({ dict }: { dict: Dict }) {
+export function BookingCalendar({ dict, squareAppId, squareLocationId }: { dict: Dict; squareAppId: string; squareLocationId: string }) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [selectedService, setSelectedService] = useState<string | null>(null)
@@ -74,19 +81,21 @@ export function BookingCalendar({ dict }: { dict: Dict }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
   const [services, setServices] = useState<DbService[]>([])
   const [barbers, setBarbers] = useState<DbBarber[]>([])
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [bookedSlots, setBookedSlots] = useState<string[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [conflictModal, setConflictModal] = useState(false)
+  // Set after appointment is created; used by the payment step
+  const [currentAppointmentId, setCurrentAppointmentId] = useState<string | null>(null)
 
   const steps = [
     { id: 1, title: dict.service },
     { id: 2, title: dict.barber },
     { id: 3, title: dict.bookingStepDateTime },
     { id: 4, title: dict.bookingStepConfirm },
+    { id: 5, title: dict.bookingStepPayment },
   ]
 
   useEffect(() => {
@@ -115,7 +124,7 @@ export function BookingCalendar({ dict }: { dict: Dict }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBarber, date])
 
-  const handleNext = () => setStep(p => Math.min(p + 1, 4))
+  const handleNext = () => setStep(p => Math.min(p + 1, 5))
   const handleBack = () => setStep(p => Math.max(p - 1, 1))
 
   const handleConfirm = async () => {
@@ -133,8 +142,9 @@ export function BookingCalendar({ dict }: { dict: Dict }) {
       return
     }
     if (result.error) { setError(result.error); return }
-    setSuccess(true)
-    setTimeout(() => router.push('/dashboard'), 2000)
+    // Appointment created — proceed to payment
+    setCurrentAppointmentId(result.appointmentId!)
+    setStep(5)
   }
 
   const serviceDetail = services.find(s => s.id === selectedService)
@@ -357,12 +367,6 @@ export function BookingCalendar({ dict }: { dict: Dict }) {
                   <LogIn className="w-4 h-4" /> {dict.bookingSignInBtn}
                 </a>
               </div>
-            ) : success ? (
-              <div className="flex flex-col items-center gap-3 py-4">
-                <CheckCircle2 className="w-12 h-12 text-yellow-500" />
-                <p className="text-white font-bold text-lg">{dict.bookingBooked}</p>
-                <p className="text-gray-400 text-sm">{dict.bookingRedirecting}</p>
-              </div>
             ) : (
               <>
                 {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
@@ -379,31 +383,54 @@ export function BookingCalendar({ dict }: { dict: Dict }) {
             )}
           </motion.div>
         )}
+        {/* Step 5: Payment */}
+        {step === 5 && currentAppointmentId && serviceDetail && (
+          <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <h2 className="text-2xl font-bold mb-6 text-white text-center">{dict.bookingStepPayment}</h2>
+            <PaymentForm
+              appointmentId={currentAppointmentId}
+              amountCents={Math.round(Number(serviceDetail.price) * 100)}
+              squareAppId={squareAppId}
+              squareLocationId={squareLocationId}
+              onSuccess={() => router.push('/dashboard')}
+              dict={{
+                paymentCardLabel: dict.paymentCardLabel,
+                paymentPay: dict.paymentPay,
+                paymentPaying: dict.paymentPaying,
+                paymentOrPayWith: dict.paymentOrPayWith,
+                paymentSdkLoading: dict.paymentSdkLoading,
+                paymentSuccess: dict.paymentSuccess,
+              }}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
 
-      {/* Navigation */}
-      <div className="flex justify-between mt-8">
-        <button
-          onClick={handleBack}
-          disabled={step === 1}
-          className={clsx('px-6 py-2 rounded-lg font-semibold', step === 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-white')}
-        >
-          {dict.bookingBack}
-        </button>
-        {step < 4 && (
+      {/* Navigation — hidden on payment step (PaymentForm handles its own submission) */}
+      {step !== 5 && (
+        <div className="flex justify-between mt-8">
           <button
-            onClick={handleNext}
-            disabled={
-              (step === 1 && !selectedService) ||
-              (step === 2 && !selectedBarber) ||
-              (step === 3 && (!date || !time))
-            }
-            className="bg-white text-black px-8 py-2 rounded-lg font-bold hover:bg-gray-200 disabled:opacity-50 transition-colors"
+            onClick={handleBack}
+            disabled={step === 1}
+            className={clsx('px-6 py-2 rounded-lg font-semibold', step === 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-white')}
           >
-            {dict.bookingNext}
+            {dict.bookingBack}
           </button>
-        )}
-      </div>
+          {step < 4 && (
+            <button
+              onClick={handleNext}
+              disabled={
+                (step === 1 && !selectedService) ||
+                (step === 2 && !selectedBarber) ||
+                (step === 3 && (!date || !time))
+              }
+              className="bg-white text-black px-8 py-2 rounded-lg font-bold hover:bg-gray-200 disabled:opacity-50 transition-colors"
+            >
+              {dict.bookingNext}
+            </button>
+          )}
+        </div>
+      )}
     </div>
     </>
   )
