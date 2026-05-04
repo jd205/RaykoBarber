@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
         merchant_name: merchant?.businessName ?? merchant?.id ?? null,
         location_id: primaryLocation?.id ?? null,
         app_id: CLIENT_ID,
-        environment: isDev ? 'sandbox' : 'production',
+        environment: isSandbox ? 'sandbox' : 'production',
         connected_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
