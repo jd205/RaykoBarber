@@ -28,8 +28,8 @@ export async function GET(req: NextRequest) {
 
   if (!savedState || savedState !== state) return errRedirect('state_mismatch')
 
-  const isDev = process.env.NODE_ENV === 'development'
-  const environment = isDev ? SquareEnvironment.Sandbox : SquareEnvironment.Production
+  const isSandbox = (process.env.SQUARE_ENVIRONMENT ?? 'sandbox') !== 'production'
+  const environment = isSandbox ? SquareEnvironment.Sandbox : SquareEnvironment.Production
 
   try {
     // Exchange authorization code for tokens

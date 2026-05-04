@@ -68,8 +68,8 @@ export async function initiateSquareOAuth(): Promise<never> {
     path: '/',
   })
 
-  const isDev = process.env.NODE_ENV === 'development'
-  const baseUrl = isDev
+  const isSandbox = (process.env.SQUARE_ENVIRONMENT ?? 'sandbox') !== 'production'
+  const baseUrl = isSandbox
     ? 'https://connect.squareupsandbox.com'
     : 'https://connect.squareup.com'
 
