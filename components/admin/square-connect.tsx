@@ -66,6 +66,8 @@ export function SquareConnect() {
   const [loadingDiag, setLoadingDiag] = useState(false)
   const [retrying, setRetrying] = useState(false)
   const [retryResult, setRetryResult] = useState<string | null>(null)
+  const [loadingMembers, setLoadingMembers] = useState(false)
+  const [showMembers, setShowMembers] = useState(false)
   const [showEnvTest, setShowEnvTest] = useState(false)
   const [loadingEnvTest, setLoadingEnvTest] = useState(false)
   const [envTestResult, setEnvTestResult] = useState<SquareEnvTestResult | null>(null)
@@ -135,6 +137,14 @@ export function SquareConnect() {
       const msg = `Sent ${res.synced}/${res.attempted} appointments to Square`
       setRetryResult(res.errors.length ? `${msg} · ${res.errors.length} skipped` : msg)
     }
+  }
+
+  const handleLoadMembers = async () => {
+    setLoadingMembers(true)
+    const d = await getSquareDiagnostics()
+    setDiag(d)
+    setShowMembers(true)
+    setLoadingMembers(false)
   }
 
   const handleTestEnv = async () => {
@@ -295,166 +305,186 @@ export function SquareConnect() {
         </div>
       )}
 
-      {/* Square Appointments Sync */}
-      {status.connected && (
-        <div className="border-t border-white/5 pt-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <CalendarCheck className="w-4 h-4 text-yellow-500" />
-            <h3 className="text-sm font-bold text-white">Square Appointments Sync</h3>
-          </div>
-          <p className="text-gray-500 text-xs leading-relaxed">
-            Sync your services and barbers to Square so new bookings appear automatically in the Square Appointments calendar.
-          </p>
+      {/* Square Appointments Sync — always visible, no OAuth required */}
+      <div className="border-t border-white/5 pt-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <CalendarCheck className="w-4 h-4 text-yellow-500" />
+          <h3 className="text-sm font-bold text-white">Square Appointments Sync</h3>
+        </div>
+        <p className="text-gray-500 text-xs leading-relaxed">
+          Sincroniza servicios y barberos con Square para que las citas aparezcan automáticamente en el calendario de Square Appointments.
+        </p>
 
-          {/* Sync status bars */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-black/40 border border-white/5 rounded-xl p-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Scissors className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Services</span>
-              </div>
-              <p className="text-white font-bold text-lg">
-                {syncStatus.servicesSynced}
-                <span className="text-gray-500 font-normal text-sm"> / {syncStatus.servicesTotal}</span>
-              </p>
-              <p className="text-gray-600 text-xs mt-0.5">synced to Square catalog</p>
+        {/* Sync status bars */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-black/40 border border-white/5 rounded-xl p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Scissors className="w-3.5 h-3.5 text-gray-400" />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Servicios</span>
             </div>
-            <div className="bg-black/40 border border-white/5 rounded-xl p-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Users className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Barbers</span>
-              </div>
-              <p className="text-white font-bold text-lg">
-                {syncStatus.barbersSynced}
-                <span className="text-gray-500 font-normal text-sm"> / {syncStatus.barbersTotal}</span>
-              </p>
-              <p className="text-gray-600 text-xs mt-0.5">matched to team members</p>
-            </div>
-          </div>
-
-          {syncStatus.barbersSynced < syncStatus.barbersTotal && (
-            <div className="flex items-start gap-2 bg-yellow-500/5 border border-yellow-500/15 rounded-xl px-3 py-2.5">
-              <AlertCircle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <p className="text-yellow-400/80 text-xs leading-relaxed">
-                Barbers not matched: make sure their names in Square Team match the names in your Barbers list exactly, then click Sync.
-              </p>
-            </div>
-          )}
-
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50"
-          >
-            {syncing
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Syncing…</>
-              : <><RefreshCw className="w-4 h-4" /> Sync Now</>}
-          </button>
-
-          {syncResult && (
-            <p className={`text-xs flex items-center gap-1.5 ${syncResult.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
-              {syncResult.startsWith('Error')
-                ? <AlertCircle className="w-3.5 h-3.5" />
-                : <CheckCircle2 className="w-3.5 h-3.5" />}
-              {syncResult}
+            <p className="text-white font-bold text-lg">
+              {syncStatus.servicesSynced}
+              <span className="text-gray-500 font-normal text-sm"> / {syncStatus.servicesTotal}</span>
             </p>
-          )}
-
-          {/* Retry unsynced appointments */}
-          <div className="border-t border-white/5 pt-4 space-y-2">
-            <p className="text-gray-500 text-xs">
-              Appointments created before syncing won&apos;t appear in Square. Use this to send them now.
+            <p className="text-gray-600 text-xs mt-0.5">sincronizados al catálogo</p>
+          </div>
+          <div className="bg-black/40 border border-white/5 rounded-xl p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Users className="w-3.5 h-3.5 text-gray-400" />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Barberos</span>
+            </div>
+            <p className="text-white font-bold text-lg">
+              {syncStatus.barbersSynced}
+              <span className="text-gray-500 font-normal text-sm"> / {syncStatus.barbersTotal}</span>
             </p>
-            <button
-              onClick={handleRetry}
-              disabled={retrying}
-              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50"
-            >
-              {retrying
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
-                : <><RotateCcw className="w-4 h-4" /> Retry Unsynced Appointments</>}
-            </button>
-            {retryResult && (
-              <p className={`text-xs flex items-center gap-1.5 ${retryResult.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
-                {retryResult.startsWith('Error') ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                {retryResult}
+            <p className="text-gray-600 text-xs mt-0.5">enlazados a team members</p>
+          </div>
+        </div>
+
+        {/* Step 1 — Ver miembros de Square */}
+        <div className="bg-black/30 border border-white/8 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white text-sm font-semibold">Paso 1 · Ver miembros de Square</p>
+              <p className="text-gray-500 text-xs mt-0.5">
+                Compara quién existe en Square con los barberos de tu app. Los nombres deben coincidir exactamente.
               </p>
-            )}
+            </div>
+            <button
+              onClick={showMembers ? () => setShowMembers(false) : handleLoadMembers}
+              disabled={loadingMembers}
+              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-4 py-2 rounded-xl transition-colors text-sm disabled:opacity-50 flex-shrink-0 ml-4"
+            >
+              {loadingMembers
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</>
+                : showMembers
+                  ? <><ChevronUp className="w-4 h-4" /> Ocultar</>
+                  : <><Users className="w-4 h-4" /> Ver miembros</>}
+            </button>
           </div>
 
-          {/* Diagnostic panel */}
-          <div className="border-t border-white/5 pt-4">
-            <button
-              onClick={showDiag ? () => setShowDiag(false) : handleLoadDiag}
-              disabled={loadingDiag}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-300 text-xs transition-colors"
-            >
-              {loadingDiag
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : showDiag ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              {showDiag ? 'Hide diagnostics' : 'Show diagnostics'}
-            </button>
-
-            {showDiag && (
-              <div className="mt-3 space-y-3">
-                {/* Token status */}
-                <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${diag.tokenWorking ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                  {diag.tokenWorking
-                    ? <><Wifi className="w-3.5 h-3.5" /> Access token OK · Location: {diag.locationId || 'not set'}</>
-                    : <><WifiOff className="w-3.5 h-3.5" /> Token error: {diag.tokenError}</>}
-                </div>
-
-                {/* Barbers */}
-                <div className="space-y-1">
-                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Barbers (your app)</p>
-                  {diag.barbers.map(b => (
-                    <div key={b.id} className="flex items-center gap-2 text-xs">
+          {showMembers && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {/* App barbers */}
+              <div className="space-y-1.5">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">En tu app</p>
+                {diag.barbers.length === 0
+                  ? <p className="text-gray-600 text-xs">No hay barberos activos</p>
+                  : diag.barbers.map(b => (
+                    <div key={b.id} className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2">
                       {b.teamMemberId
                         ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
                         : <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
-                      <span className={b.teamMemberId ? 'text-gray-300' : 'text-red-300'}>{b.name}</span>
-                      {!b.teamMemberId && <span className="text-gray-600">— not matched</span>}
+                      <span className={`text-xs font-mono ${b.teamMemberId ? 'text-gray-200' : 'text-red-300'}`}>{b.name}</span>
                     </div>
                   ))}
-                </div>
-
-                {/* Square team members */}
-                {diag.squareTeamMembers.length > 0 ? (
-                  <div className="space-y-1">
-                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Team members in Square</p>
-                    {diag.squareTeamMembers.map(m => (
-                      <div key={m.id} className="text-xs text-gray-400 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-600 flex-shrink-0" />
-                        {m.name}
-                      </div>
-                    ))}
-                  </div>
-                ) : diag.tokenWorking ? (
-                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2 text-xs text-orange-400">
-                    No team members found in Square for this location.<br />
-                    Go to <span className="font-semibold">Square Dashboard → Team</span>, add your barbers there with the <span className="font-semibold">exact same names</span> as in this app, then click Sync Now.
-                  </div>
-                ) : null}
-
-                {/* Services */}
-                <div className="space-y-1">
-                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Services (catalog sync)</p>
-                  {diag.services.map(s => (
-                    <div key={s.id} className="flex items-center gap-2 text-xs">
-                      {s.catalogId && s.hasVersion
-                        ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                        : <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
-                      <span className={s.catalogId ? 'text-gray-300' : 'text-red-300'}>{s.name}</span>
-                      {!s.catalogId && <span className="text-gray-600">— click Sync Now</span>}
-                      {s.catalogId && !s.hasVersion && <span className="text-yellow-500">— missing version, re-sync</span>}
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
-          </div>
+
+              {/* Square team members */}
+              <div className="space-y-1.5">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">En Square</p>
+                {!diag.tokenWorking
+                  ? <div className="flex items-center gap-2 text-xs text-red-400"><WifiOff className="w-3.5 h-3.5" />{diag.tokenError ?? 'Token inválido'}</div>
+                  : diag.squareTeamMembers.length === 0
+                    ? (
+                      <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 text-xs text-orange-400 leading-relaxed">
+                        No hay miembros en Square para esta location.<br />
+                        Ve a <span className="font-semibold">Square Dashboard → Team</span>, agrega tus barberos con exactamente los mismos nombres que aparecen aquí a la izquierda.
+                      </div>
+                    )
+                  : diag.squareTeamMembers.map(m => (
+                    <div key={m.id} className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                      <span className="text-xs font-mono text-gray-200">{m.name}</span>
+                      <span className="text-gray-600 text-xs truncate ml-auto">{m.id.slice(0, 8)}…</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Step 2 — Sync Now */}
+        <div className="bg-black/30 border border-white/8 rounded-xl p-4 space-y-2">
+          <p className="text-white text-sm font-semibold">Paso 2 · Sincronizar con Square</p>
+          <p className="text-gray-500 text-xs">
+            Enlaza los barberos de tu app con sus team members de Square y sube los servicios al catálogo.
+          </p>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-5 py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50 mt-1"
+          >
+            {syncing
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Sincronizando…</>
+              : <><RefreshCw className="w-4 h-4" /> Sync Now</>}
+          </button>
+          {syncResult && (
+            <p className={`text-xs flex items-center gap-1.5 ${syncResult.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
+              {syncResult.startsWith('Error') ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              {syncResult}
+            </p>
+          )}
+        </div>
+
+        {/* Step 3 — Retry unsynced appointments */}
+        <div className="bg-black/30 border border-white/8 rounded-xl p-4 space-y-2">
+          <p className="text-white text-sm font-semibold">Paso 3 · Enviar citas pendientes</p>
+          <p className="text-gray-500 text-xs">
+            Las citas creadas antes del sync no están en Square. Este botón las envía ahora (es seguro repetirlo).
+          </p>
+          <button
+            onClick={handleRetry}
+            disabled={retrying}
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50 mt-1"
+          >
+            {retrying
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</>
+              : <><RotateCcw className="w-4 h-4" /> Retry Unsynced Appointments</>}
+          </button>
+          {retryResult && (
+            <p className={`text-xs flex items-center gap-1.5 ${retryResult.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
+              {retryResult.startsWith('Error') ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              {retryResult}
+            </p>
+          )}
+        </div>
+
+        {/* Diagnostics (collapsed) */}
+        <div className="pt-1">
+          <button
+            onClick={showDiag ? () => setShowDiag(false) : handleLoadDiag}
+            disabled={loadingDiag}
+            className="flex items-center gap-1.5 text-gray-600 hover:text-gray-400 text-xs transition-colors"
+          >
+            {loadingDiag ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : showDiag ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {showDiag ? 'Ocultar diagnóstico completo' : 'Ver diagnóstico completo'}
+          </button>
+
+          {showDiag && (
+            <div className="mt-3 space-y-3">
+              <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${diag.tokenWorking ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                {diag.tokenWorking
+                  ? <><Wifi className="w-3.5 h-3.5" /> Token OK · Location: {diag.locationId || 'no configurado'}</>
+                  : <><WifiOff className="w-3.5 h-3.5" /> Token error: {diag.tokenError}</>}
+              </div>
+              <div className="space-y-1">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Servicios (catálogo)</p>
+                {diag.services.map(s => (
+                  <div key={s.id} className="flex items-center gap-2 text-xs">
+                    {s.catalogId && s.hasVersion
+                      ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                      : <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
+                    <span className={s.catalogId ? 'text-gray-300' : 'text-red-300'}>{s.name}</span>
+                    {!s.catalogId && <span className="text-gray-600">— haz clic en Sync Now</span>}
+                    {s.catalogId && !s.hasVersion && <span className="text-yellow-500">— falta versión, re-sincroniza</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* .env Test Panel */}
       <div className="border-t border-white/5 pt-5 space-y-3">
