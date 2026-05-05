@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   CreditCard, CheckCircle2, AlertCircle, Loader2,
   Unplug, ExternalLink, RefreshCw, Clock, CalendarCheck, Users, Scissors,
-  ChevronDown, ChevronUp, Wifi, WifiOff, RotateCcw,
+  ChevronDown, ChevronUp, Wifi, WifiOff, RotateCcw, FlaskConical,
 } from 'lucide-react'
 import {
   getSquareConnectionStatus,
@@ -19,8 +19,10 @@ import {
   getSquareSyncStatus,
   getSquareDiagnostics,
   retryUnsyncedAppointments,
+  testSquareEnvVars,
   type SquareSyncStatus,
   type SquareDiagnostic,
+  type SquareEnvTestResult,
 } from '@/app/actions/square-sync'
 
 const DISCONNECTED: SquareConnectionStatus = {
@@ -64,6 +66,9 @@ export function SquareConnect() {
   const [loadingDiag, setLoadingDiag] = useState(false)
   const [retrying, setRetrying] = useState(false)
   const [retryResult, setRetryResult] = useState<string | null>(null)
+  const [showEnvTest, setShowEnvTest] = useState(false)
+  const [loadingEnvTest, setLoadingEnvTest] = useState(false)
+  const [envTestResult, setEnvTestResult] = useState<SquareEnvTestResult | null>(null)
 
   // Read URL params set by the OAuth callback, then clean the URL
   useEffect(() => {
@@ -130,6 +135,14 @@ export function SquareConnect() {
       const msg = `Sent ${res.synced}/${res.attempted} appointments to Square`
       setRetryResult(res.errors.length ? `${msg} · ${res.errors.length} skipped` : msg)
     }
+  }
+
+  const handleTestEnv = async () => {
+    setLoadingEnvTest(true)
+    const result = await testSquareEnvVars()
+    setEnvTestResult(result)
+    setShowEnvTest(true)
+    setLoadingEnvTest(false)
   }
 
   const daysUntilExpiry = status.tokenExpiresAt
@@ -442,6 +455,72 @@ export function SquareConnect() {
           </div>
         </div>
       )}
+
+      {/* .env Test Panel */}
+      <div className="border-t border-white/5 pt-5 space-y-3">
+        <button
+          onClick={showEnvTest ? () => setShowEnvTest(false) : handleTestEnv}
+          disabled={loadingEnvTest}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+        >
+          {loadingEnvTest
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : showEnvTest
+              ? <ChevronUp className="w-4 h-4" />
+              : <ChevronDown className="w-4 h-4" />}
+          <FlaskConical className="w-4 h-4 text-yellow-500" />
+          Test .env variables
+        </button>
+
+        {showEnvTest && envTestResult && (
+          <div className="space-y-4">
+            {/* API ping result */}
+            <div className={`flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm ${envTestResult.apiTest.success ? 'bg-green-500/10 border border-green-500/20 text-green-400' : 'bg-red-500/10 border border-red-500/20 text-red-400'}`}>
+              {envTestResult.apiTest.success
+                ? <Wifi className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                : <WifiOff className="w-4 h-4 mt-0.5 flex-shrink-0" />}
+              <div>
+                <p className="font-semibold">{envTestResult.apiTest.success ? 'Conexión exitosa con Square API' : 'Error de conexión con Square API'}</p>
+                <p className="text-xs mt-0.5 opacity-80">{envTestResult.apiTest.detail}</p>
+              </div>
+            </div>
+
+            {/* Var list */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Variables detectadas</p>
+              {envTestResult.vars.map(v => (
+                <div key={v.name} className="bg-black/40 border border-white/5 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <div className="mt-0.5 flex-shrink-0">
+                    {v.present
+                      ? <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      : <AlertCircle className={`w-4 h-4 ${v.critical ? 'text-red-400' : 'text-yellow-500'}`} />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs text-gray-300">{v.name}</span>
+                      {v.present
+                        ? <span className="font-mono text-xs text-gray-500 bg-black/60 px-2 py-0.5 rounded">{v.value}</span>
+                        : <span className={`text-xs font-bold ${v.critical ? 'text-red-400' : 'text-yellow-400'}`}>
+                            {v.critical ? 'FALTA (obligatorio)' : 'FALTA (opcional)'}
+                          </span>}
+                    </div>
+                    <p className="text-gray-600 text-xs mt-1 leading-relaxed">{v.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleTestEnv}
+              disabled={loadingEnvTest}
+              className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
+            >
+              {loadingEnvTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+              Volver a testear
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Setup note */}
       <div className="border-t border-white/5 pt-4">

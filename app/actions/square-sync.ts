@@ -242,6 +242,113 @@ export async function getSquareDiagnostics(): Promise<SquareDiagnostic> {
   }
 }
 
+// ─── Env-var test ────────────────────────────────────────────────────────────
+
+export type EnvVarCheck = {
+  name: string
+  present: boolean
+  value: string   // safe to show: full for public vars, masked for secrets
+  label: string
+  critical: boolean
+}
+
+export type SquareEnvTestResult = {
+  vars: EnvVarCheck[]
+  apiTest: { success: boolean; detail: string }
+}
+
+function maskSecret(v: string | undefined): string {
+  if (!v) return '—'
+  if (v.length <= 12) return '•'.repeat(v.length)
+  return `${v.slice(0, 8)}…${v.slice(-4)}`
+}
+
+/** Reads every Square env var, masks secrets, then pings the API to confirm the token works. */
+export async function testSquareEnvVars(): Promise<SquareEnvTestResult> {
+  const admin = await requireAdmin()
+  if ('error' in admin) return { vars: [], apiTest: { success: false, detail: 'Not authorized' } }
+
+  const vars: EnvVarCheck[] = [
+    {
+      name: 'SQUARE_ENVIRONMENT',
+      present: !!process.env.SQUARE_ENVIRONMENT,
+      value: process.env.SQUARE_ENVIRONMENT ?? '—',
+      label: '"sandbox" o "production" — elige el SDK y endpoint correcto',
+      critical: true,
+    },
+    {
+      name: 'SQUARE_ACCESS_TOKEN',
+      present: !!process.env.SQUARE_ACCESS_TOKEN,
+      value: maskSecret(process.env.SQUARE_ACCESS_TOKEN),
+      label: 'API calls del servidor: pagos, bookings, catálogo. Dev Console → Credentials → Sandbox Access Token',
+      critical: true,
+    },
+    {
+      name: 'NEXT_PUBLIC_SQUARE_APP_ID',
+      present: !!process.env.NEXT_PUBLIC_SQUARE_APP_ID,
+      value: process.env.NEXT_PUBLIC_SQUARE_APP_ID ?? '—',
+      label: 'SDK del formulario de pago. Sandbox: sandbox-sq0idb-… Dev Console → Credentials → Sandbox Application ID',
+      critical: true,
+    },
+    {
+      name: 'NEXT_PUBLIC_SQUARE_LOCATION_ID',
+      present: !!process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID,
+      value: process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? '—',
+      label: 'Location de Square para bookings y catálogo. Dev Console → Locations',
+      critical: true,
+    },
+    {
+      name: 'SQUARE_CLIENT_ID',
+      present: !!process.env.SQUARE_CLIENT_ID,
+      value: maskSecret(process.env.SQUARE_CLIENT_ID),
+      label: 'Solo para el botón "Connect with Square" (OAuth). Dev Console → OAuth → Application ID',
+      critical: false,
+    },
+    {
+      name: 'SQUARE_CLIENT_SECRET',
+      present: !!process.env.SQUARE_CLIENT_SECRET,
+      value: maskSecret(process.env.SQUARE_CLIENT_SECRET),
+      label: 'Solo para el botón "Connect with Square" (OAuth). Dev Console → OAuth → Show Secret',
+      critical: false,
+    },
+    {
+      name: 'NEXT_PUBLIC_SITE_URL',
+      present: !!process.env.NEXT_PUBLIC_SITE_URL,
+      value: process.env.NEXT_PUBLIC_SITE_URL ?? '—',
+      label: 'URL base del redirect OAuth. Debe coincidir exactamente con lo registrado en Square Dev Console → OAuth',
+      critical: false,
+    },
+  ]
+
+  let apiTest: SquareEnvTestResult['apiTest'] = {
+    success: false,
+    detail: 'SQUARE_ACCESS_TOKEN no está configurado',
+  }
+
+  if (process.env.SQUARE_ACCESS_TOKEN) {
+    try {
+      const squareClient = await getSquareClient()
+      const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? 'NONE'
+      const res = await squareClient.teamMembers.search({
+        query: { filter: { locationIds: [locationId], status: 'ACTIVE' } },
+      })
+      apiTest = {
+        success: true,
+        detail: `Token OK · ${res.teamMembers?.length ?? 0} miembro(s) de equipo activo(s) en location ${locationId}`,
+      }
+    } catch (err) {
+      apiTest = {
+        success: false,
+        detail: err instanceof Error ? err.message : 'Square API call failed',
+      }
+    }
+  }
+
+  return { vars, apiTest }
+}
+
+// ─── Appointment retry ────────────────────────────────────────────────────────
+
 /** Retry Square Bookings sync for all scheduled appointments that were never sent to Square. */
 export async function retryUnsyncedAppointments(): Promise<{
   attempted: number; synced: number; errors: string[]
