@@ -16,8 +16,9 @@ export default async function BookingPage() {
   const dict = dictionaries[locale] ?? dictionaries.en
   const nonce = headersList.get('x-nonce') ?? ''
 
-  const isDev = process.env.NODE_ENV === 'development'
-  const squareSrc = isDev
+  // Use SQUARE_ENVIRONMENT (not NODE_ENV) so Vercel production with sandbox creds loads sandbox SDK
+  const isSandboxEnv = (process.env.SQUARE_ENVIRONMENT ?? 'sandbox') !== 'production'
+  const squareSrc = isSandboxEnv
     ? 'https://sandbox.web.squarecdn.com/v1/square.js'
     : 'https://web.squarecdn.com/v1/square.js'
 

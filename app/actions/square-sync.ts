@@ -176,3 +176,137 @@ export async function getSquareSyncStatus(): Promise<SquareSyncStatus> {
     barbersSynced: barbers?.filter(b => b.square_team_member_id).length ?? 0,
   }
 }
+
+export type SquareDiagnostic = {
+  tokenWorking: boolean
+  locationId: string
+  barbers: Array<{ id: string; name: string; teamMemberId: string | null }>
+  services: Array<{ id: string; name: string; catalogId: string | null; hasVersion: boolean }>
+  squareTeamMembers: Array<{ id: string; name: string }>
+  tokenError?: string
+}
+
+/** Full diagnostic: token validity, per-barber/service status, available Square team members. */
+export async function getSquareDiagnostics(): Promise<SquareDiagnostic> {
+  const admin = await requireAdmin()
+  const empty: SquareDiagnostic = {
+    tokenWorking: false, locationId: '', barbers: [], services: [], squareTeamMembers: [],
+  }
+  if ('error' in admin) return empty
+
+  const supabase = await createClient()
+  const locationId = await getLocationId()
+
+  const [{ data: barbers }, { data: services }] = await Promise.all([
+    supabase.from('barbers').select('id, name, square_team_member_id').eq('active', true),
+    supabase.from('services').select('id, name, square_catalog_variation_id, square_catalog_variation_version').eq('active', true),
+  ])
+
+  let tokenWorking = false
+  let squareTeamMembers: Array<{ id: string; name: string }> = []
+  let tokenError: string | undefined
+
+  try {
+    const squareClient = await getSquareClient()
+    const res = await squareClient.teamMembers.search({
+      query: { filter: { locationIds: [locationId || 'NONE'], status: 'ACTIVE' } },
+    })
+    tokenWorking = true
+    squareTeamMembers = (res.teamMembers ?? []).map(m => ({
+      id: m.id ?? '',
+      name: `${m.givenName ?? ''} ${m.familyName ?? ''}`.trim(),
+    }))
+  } catch (err) {
+    tokenError = err instanceof Error ? err.message : 'Square API call failed'
+  }
+
+  return {
+    tokenWorking,
+    locationId,
+    barbers: (barbers ?? []).map(b => ({
+      id: b.id,
+      name: b.name,
+      teamMemberId: (b as { square_team_member_id?: string }).square_team_member_id ?? null,
+    })),
+    services: (services ?? []).map(s => {
+      const sAny = s as { square_catalog_variation_id?: string; square_catalog_variation_version?: number }
+      return {
+        id: s.id,
+        name: s.name,
+        catalogId: sAny.square_catalog_variation_id ?? null,
+        hasVersion: sAny.square_catalog_variation_version != null,
+      }
+    }),
+    squareTeamMembers,
+    tokenError,
+  }
+}
+
+/** Retry Square Bookings sync for all scheduled appointments that were never sent to Square. */
+export async function retryUnsyncedAppointments(): Promise<{
+  attempted: number; synced: number; errors: string[]
+}> {
+  const admin = await requireAdmin()
+  if ('error' in admin) return { attempted: 0, synced: 0, errors: [admin.error] }
+
+  const supabase = await createClient()
+  const locationId = await getLocationId()
+  if (!locationId) return { attempted: 0, synced: 0, errors: ['Location ID not configured'] }
+
+  const { data: appointments } = await supabase
+    .from('appointments')
+    .select('id, service_id, barber_id, appointment_date')
+    .eq('status', 'scheduled')
+    .is('square_booking_id', null)
+    .order('appointment_date', { ascending: false })
+    .limit(50)
+
+  if (!appointments?.length) return { attempted: 0, synced: 0, errors: [] }
+
+  const squareClient = await getSquareClient()
+  let synced = 0
+  const errors: string[] = []
+
+  for (const appt of appointments) {
+    try {
+      const [{ data: barberSq }, { data: serviceSq }] = await Promise.all([
+        supabase.from('barbers').select('square_team_member_id').eq('id', appt.barber_id).single(),
+        supabase.from('services').select('square_catalog_variation_id, square_catalog_variation_version, duration_minutes').eq('id', appt.service_id).single(),
+      ])
+
+      const teamMemberId = (barberSq as { square_team_member_id?: string } | null)?.square_team_member_id
+      const variationId = (serviceSq as { square_catalog_variation_id?: string } | null)?.square_catalog_variation_id
+      const variationVersion = (serviceSq as { square_catalog_variation_version?: number } | null)?.square_catalog_variation_version
+      const durationMinutes = (serviceSq as { duration_minutes?: number } | null)?.duration_minutes ?? 30
+
+      if (!teamMemberId || !variationId || !variationVersion) {
+        errors.push(`Appt ${appt.id.slice(0, 8)}: missing ${!teamMemberId ? 'team member' : !variationId ? 'catalog ID' : 'catalog version'}`)
+        continue
+      }
+
+      const bookingRes = await squareClient.bookings.create({
+        idempotencyKey: appt.id,
+        booking: {
+          startAt: appt.appointment_date,
+          locationId,
+          appointmentSegments: [{
+            durationMinutes,
+            serviceVariationId: variationId,
+            teamMemberId,
+            serviceVariationVersion: BigInt(variationVersion),
+          }],
+        },
+      })
+
+      const squareBookingId = bookingRes.booking?.id
+      if (squareBookingId) {
+        await supabase.from('appointments').update({ square_booking_id: squareBookingId }).eq('id', appt.id)
+        synced++
+      }
+    } catch (err) {
+      errors.push(`Appt ${appt.id.slice(0, 8)}: ${err instanceof Error ? err.message : 'unknown error'}`)
+    }
+  }
+
+  return { attempted: appointments.length, synced, errors }
+}

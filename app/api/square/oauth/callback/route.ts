@@ -62,6 +62,11 @@ export async function GET(req: NextRequest) {
       locationsRes.locations?.find(l => l.status === 'ACTIVE') ??
       locationsRes.locations?.[0]
 
+    // Derive the Web Payments SDK app ID from the OAuth client ID.
+    // OAuth uses sq0idp-SUFFIX in both envs; the sandbox SDK needs sandbox-sq0idb-SUFFIX.
+    const suffix = CLIENT_ID.replace(/^sq0idp-/, '')
+    const sdkAppId = isSandbox ? `sandbox-sq0idb-${suffix}` : CLIENT_ID
+
     // Persist all credentials to the singleton row
     const supabase = await createClient()
     const { error: dbError } = await supabase
@@ -73,7 +78,7 @@ export async function GET(req: NextRequest) {
         merchant_id: merchant?.id ?? null,
         merchant_name: merchant?.businessName ?? merchant?.id ?? null,
         location_id: primaryLocation?.id ?? null,
-        app_id: CLIENT_ID,
+        app_id: sdkAppId,
         environment: isSandbox ? 'sandbox' : 'production',
         connected_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

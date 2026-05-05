@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   CreditCard, CheckCircle2, AlertCircle, Loader2,
   Unplug, ExternalLink, RefreshCw, Clock, CalendarCheck, Users, Scissors,
+  ChevronDown, ChevronUp, Wifi, WifiOff, RotateCcw,
 } from 'lucide-react'
 import {
   getSquareConnectionStatus,
@@ -16,7 +17,10 @@ import {
   syncSquareServices,
   syncSquareTeamMembers,
   getSquareSyncStatus,
+  getSquareDiagnostics,
+  retryUnsyncedAppointments,
   type SquareSyncStatus,
+  type SquareDiagnostic,
 } from '@/app/actions/square-sync'
 
 const DISCONNECTED: SquareConnectionStatus = {
@@ -31,6 +35,10 @@ const DISCONNECTED: SquareConnectionStatus = {
 
 const SYNC_ZERO: SquareSyncStatus = {
   servicesTotal: 0, servicesSynced: 0, barbersTotal: 0, barbersSynced: 0,
+}
+
+const DIAG_EMPTY: SquareDiagnostic = {
+  tokenWorking: false, locationId: '', barbers: [], services: [], squareTeamMembers: [],
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -51,6 +59,11 @@ export function SquareConnect() {
   const [syncStatus, setSyncStatus] = useState<SquareSyncStatus>(SYNC_ZERO)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [diag, setDiag] = useState<SquareDiagnostic>(DIAG_EMPTY)
+  const [showDiag, setShowDiag] = useState(false)
+  const [loadingDiag, setLoadingDiag] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+  const [retryResult, setRetryResult] = useState<string | null>(null)
 
   // Read URL params set by the OAuth callback, then clean the URL
   useEffect(() => {
@@ -87,13 +100,35 @@ export function SquareConnect() {
     setSyncing(true)
     setSyncResult(null)
     const [svcRes, tmRes] = await Promise.all([syncSquareServices(), syncSquareTeamMembers()])
-    const fresh = await getSquareSyncStatus()
+    const [fresh, freshDiag] = await Promise.all([getSquareSyncStatus(), getSquareDiagnostics()])
     setSyncStatus(fresh)
+    setDiag(freshDiag)
     setSyncing(false)
     if (svcRes.error || tmRes.error) {
       setSyncResult(`Error: ${svcRes.error ?? tmRes.error}`)
     } else {
       setSyncResult(`Synced ${svcRes.synced} services · Matched ${tmRes.matched}/${tmRes.total} team members`)
+    }
+  }
+
+  const handleLoadDiag = async () => {
+    setLoadingDiag(true)
+    const d = await getSquareDiagnostics()
+    setDiag(d)
+    setShowDiag(true)
+    setLoadingDiag(false)
+  }
+
+  const handleRetry = async () => {
+    setRetrying(true)
+    setRetryResult(null)
+    const res = await retryUnsyncedAppointments()
+    setRetrying(false)
+    if (res.errors.length && !res.synced) {
+      setRetryResult(`Error: ${res.errors[0]}`)
+    } else {
+      const msg = `Sent ${res.synced}/${res.attempted} appointments to Square`
+      setRetryResult(res.errors.length ? `${msg} · ${res.errors.length} skipped` : msg)
     }
   }
 
@@ -311,6 +346,100 @@ export function SquareConnect() {
               {syncResult}
             </p>
           )}
+
+          {/* Retry unsynced appointments */}
+          <div className="border-t border-white/5 pt-4 space-y-2">
+            <p className="text-gray-500 text-xs">
+              Appointments created before syncing won&apos;t appear in Square. Use this to send them now.
+            </p>
+            <button
+              onClick={handleRetry}
+              disabled={retrying}
+              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50"
+            >
+              {retrying
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                : <><RotateCcw className="w-4 h-4" /> Retry Unsynced Appointments</>}
+            </button>
+            {retryResult && (
+              <p className={`text-xs flex items-center gap-1.5 ${retryResult.startsWith('Error') ? 'text-red-400' : 'text-green-400'}`}>
+                {retryResult.startsWith('Error') ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                {retryResult}
+              </p>
+            )}
+          </div>
+
+          {/* Diagnostic panel */}
+          <div className="border-t border-white/5 pt-4">
+            <button
+              onClick={showDiag ? () => setShowDiag(false) : handleLoadDiag}
+              disabled={loadingDiag}
+              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-300 text-xs transition-colors"
+            >
+              {loadingDiag
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : showDiag ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showDiag ? 'Hide diagnostics' : 'Show diagnostics'}
+            </button>
+
+            {showDiag && (
+              <div className="mt-3 space-y-3">
+                {/* Token status */}
+                <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${diag.tokenWorking ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                  {diag.tokenWorking
+                    ? <><Wifi className="w-3.5 h-3.5" /> Access token OK · Location: {diag.locationId || 'not set'}</>
+                    : <><WifiOff className="w-3.5 h-3.5" /> Token error: {diag.tokenError}</>}
+                </div>
+
+                {/* Barbers */}
+                <div className="space-y-1">
+                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Barbers (your app)</p>
+                  {diag.barbers.map(b => (
+                    <div key={b.id} className="flex items-center gap-2 text-xs">
+                      {b.teamMemberId
+                        ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                        : <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
+                      <span className={b.teamMemberId ? 'text-gray-300' : 'text-red-300'}>{b.name}</span>
+                      {!b.teamMemberId && <span className="text-gray-600">— not matched</span>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Square team members */}
+                {diag.squareTeamMembers.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Team members in Square</p>
+                    {diag.squareTeamMembers.map(m => (
+                      <div key={m.id} className="text-xs text-gray-400 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-600 flex-shrink-0" />
+                        {m.name}
+                      </div>
+                    ))}
+                  </div>
+                ) : diag.tokenWorking ? (
+                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2 text-xs text-orange-400">
+                    No team members found in Square for this location.<br />
+                    Go to <span className="font-semibold">Square Dashboard → Team</span>, add your barbers there with the <span className="font-semibold">exact same names</span> as in this app, then click Sync Now.
+                  </div>
+                ) : null}
+
+                {/* Services */}
+                <div className="space-y-1">
+                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Services (catalog sync)</p>
+                  {diag.services.map(s => (
+                    <div key={s.id} className="flex items-center gap-2 text-xs">
+                      {s.catalogId && s.hasVersion
+                        ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                        : <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
+                      <span className={s.catalogId ? 'text-gray-300' : 'text-red-300'}>{s.name}</span>
+                      {!s.catalogId && <span className="text-gray-600">— click Sync Now</span>}
+                      {s.catalogId && !s.hasVersion && <span className="text-yellow-500">— missing version, re-sync</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
