@@ -411,7 +411,13 @@ export async function retryUnsyncedAppointments(): Promise<{
         synced++
       }
     } catch (err) {
-      errors.push(`Appt ${appt.id.slice(0, 8)}: ${err instanceof Error ? err.message : 'unknown error'}`)
+      const raw = err instanceof Error ? err.message : 'unknown error'
+      // Detect Square Appointments not enabled — surface actionable guidance
+      const msg = raw.includes('not onboarded to Appointments') || raw.includes('UNAUTHORIZED')
+        ? 'El merchant no tiene Square Appointments activado. Ve a Square Developer Console → Sandbox → Test Accounts → abre el seller dashboard → activa Appointments.'
+        : `Appt ${appt.id.slice(0, 8)}: ${raw}`
+      errors.push(msg)
+      break // same error will affect all appts — no point retrying the rest
     }
   }
 
