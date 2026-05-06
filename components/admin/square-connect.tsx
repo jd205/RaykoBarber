@@ -20,9 +20,11 @@ import {
   getSquareDiagnostics,
   retryUnsyncedAppointments,
   testSquareEnvVars,
+  testBookingsAccess,
   type SquareSyncStatus,
   type SquareDiagnostic,
   type SquareEnvTestResult,
+  type BookingsTestResult,
 } from '@/app/actions/square-sync'
 
 const DISCONNECTED: SquareConnectionStatus = {
@@ -68,6 +70,8 @@ export function SquareConnect() {
   const [retryResult, setRetryResult] = useState<string | null>(null)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
+  const [testingBookings, setTestingBookings] = useState(false)
+  const [bookingsTest, setBookingsTest] = useState<BookingsTestResult | null>(null)
   const [showEnvTest, setShowEnvTest] = useState(false)
   const [loadingEnvTest, setLoadingEnvTest] = useState(false)
   const [envTestResult, setEnvTestResult] = useState<SquareEnvTestResult | null>(null)
@@ -137,6 +141,12 @@ export function SquareConnect() {
       const msg = `Sent ${res.synced}/${res.attempted} appointments to Square`
       setRetryResult(res.errors.length ? `${msg} · ${res.errors.length} skipped` : msg)
     }
+  }
+
+  const handleTestBookings = async () => {
+    setTestingBookings(true)
+    setBookingsTest(await testBookingsAccess())
+    setTestingBookings(false)
   }
 
   const handleLoadMembers = async () => {
@@ -448,6 +458,36 @@ export function SquareConnect() {
               {retryResult}
             </p>
           )}
+
+          {/* Bookings API access test */}
+          <div className="pt-1 space-y-2">
+            <button
+              onClick={handleTestBookings}
+              disabled={testingBookings}
+              className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
+            >
+              {testingBookings ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FlaskConical className="w-3.5 h-3.5 text-yellow-500" />}
+              Verificar acceso al Bookings API
+            </button>
+
+            {bookingsTest && (
+              <div className={`rounded-xl px-4 py-3 space-y-1.5 text-xs ${bookingsTest.canListBookings ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+                <div className={`flex items-center gap-2 font-semibold ${bookingsTest.canListBookings ? 'text-green-400' : 'text-red-400'}`}>
+                  {bookingsTest.canListBookings ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                  {bookingsTest.canListBookings ? 'Bookings API accesible ✓' : 'Sin acceso al Bookings API'}
+                </div>
+                {bookingsTest.locationName && (
+                  <p className="text-gray-400">Location: <span className="font-mono">{bookingsTest.locationName}</span></p>
+                )}
+                {bookingsTest.rawError && (
+                  <p className="text-gray-500 font-mono break-all">{bookingsTest.rawError.slice(0, 200)}</p>
+                )}
+                {bookingsTest.hint && (
+                  <p className="text-yellow-400 leading-relaxed mt-2">{bookingsTest.hint}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Diagnostics (collapsed) */}

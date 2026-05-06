@@ -423,3 +423,71 @@ export async function retryUnsyncedAppointments(): Promise<{
 
   return { attempted: appointments.length, synced, errors }
 }
+
+// ─── Bookings API access test ─────────────────────────────────────────────────
+
+export type BookingsTestResult = {
+  canListBookings: boolean
+  locationAppointmentsEnabled: boolean | null
+  locationName: string | null
+  rawError: string | null
+  hint: string | null
+}
+
+/**
+ * Calls squareClient.bookings.list() (read-only) to verify the token has
+ * APPOINTMENTS_READ access for this location. No data is written.
+ */
+export async function testBookingsAccess(): Promise<BookingsTestResult> {
+  const admin = await requireAdmin()
+  if ('error' in admin) {
+    return { canListBookings: false, locationAppointmentsEnabled: null, locationName: null, rawError: admin.error, hint: null }
+  }
+
+  const locationId = await getLocationId()
+
+  // Also check what the location reports about itself
+  let locationName: string | null = null
+  let locationAppointmentsEnabled: boolean | null = null
+  try {
+    const squareClient = await getSquareClient()
+    const locRes = await squareClient.locations.get({ locationId: locationId || '' })
+    locationName = locRes.location?.name ?? null
+    // Square locations don't expose an "appointments_enabled" field directly,
+    // but we can infer from capabilities or just note the location exists
+    locationAppointmentsEnabled = !!locRes.location?.id
+  } catch {
+    // ignore — location fetch failure is secondary
+  }
+
+  try {
+    const squareClient = await getSquareClient()
+    await squareClient.bookings.list({ locationId: locationId || undefined })
+    return {
+      canListBookings: true,
+      locationAppointmentsEnabled,
+      locationName,
+      rawError: null,
+      hint: null,
+    }
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err)
+    let hint: string | null = null
+
+    if (raw.includes('not onboarded to Appointments')) {
+      hint = 'El merchant sandbox no completó el onboarding de Appointments. Entra al dashboard del seller sandbox (squareupsandbox.com) con las credenciales del test account (no con tu cuenta de developer) y activa Appointments desde ahí.'
+    } else if (raw.includes('UNAUTHORIZED') || raw.includes('401')) {
+      hint = 'El SQUARE_ACCESS_TOKEN no tiene el scope APPOINTMENTS_READ. Regenera el token desde Developer Console → Sandbox → Credentials → "Sandbox Access Token" → Revoke & regenerate, o usa el flujo OAuth para obtener uno con todos los scopes.'
+    } else if (raw.includes('NOT_FOUND') || raw.includes('404')) {
+      hint = 'Location ID no encontrado en Square. Verifica que NEXT_PUBLIC_SQUARE_LOCATION_ID corresponde a esta cuenta sandbox.'
+    }
+
+    return {
+      canListBookings: false,
+      locationAppointmentsEnabled,
+      locationName,
+      rawError: raw,
+      hint,
+    }
+  }
+}
